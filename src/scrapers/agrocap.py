@@ -13,8 +13,8 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 
 class AgrocapScraperSelenium:
     def __init__(self):
-        self.url_principal = "https://www.agrocap.cl/webid/"  # URL más general
-       
+        self.url_principal = "https://www.agrocap.cl/webid/"
+        
         self.opciones = Options()
         self.opciones.page_load_strategy = 'eager'
         self.opciones.add_argument("--disable-gpu")
@@ -22,56 +22,64 @@ class AgrocapScraperSelenium:
         self.opciones.add_argument("--no-sandbox")
         self.opciones.add_argument("--disable-dev-shm-usage")
         self.opciones.add_argument("--window-size=1920,1080")
-        # Mejoras anti-detección
         self.opciones.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
         
     def fetch_tender_links(self):
         anio_actual = str(datetime.now().year)
-        anio_anterior = str(datetime.now().year - 1)
-       
         logging.info(f"Iniciando exploración en Agrocap: {self.url_principal}")
-       
+        
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.opciones)
-        driver.set_page_load_timeout(60)   # ← Aumentado
+        driver.set_page_load_timeout(60)
+        wait = WebDriverWait(driver, 25)
+        enlaces = set()
+        titulo_encontrado = f"Agrocap - Becas Laborales {anio_actual}"
         
         try:
             driver.get(self.url_principal)
-            time.sleep(4)
+            time.sleep(5)
             
-            # Espera explícita
-            wait = WebDriverWait(driver, 20)
+            # === Buscar el enlace a "Becas Laborales" del año actual o anterior ===
+            logging.info("Buscando sección de Becas Laborales...")
+            posibles_anios = [anio_actual, str(int(anio_actual)-1)]
             
-            # Buscar enlaces que contengan "Becas Laborales" o año actual (más estable)
-            enlaces = set()
-            titulo_encontrado = f"Llamado Licitación Agrocap {anio_actual}"
-            
-            # Buscar páginas de licitaciones del año actual o anterior
-            posibles_anios = [anio_actual, anio_anterior]
-            
+            url_becas = None
             for anio in posibles_anios:
                 try:
-                    # Buscar enlaces con el año
-                    xpath = f"//a[contains(text(), '{anio}') or contains(text(), 'Becas Laborales')]"
-                    elementos = wait.until(EC.presence_of_all_elements_located((By.XPATH, xpath)))
+                    # Buscar enlaces que contengan "Becas Laborales" + año
+                    xpath_becas = f"//a[contains(text(), 'Becas Laborales') and contains(text(), '{anio}')]"
+                    elementos = wait.until(EC.presence_of_all_elements_located((By.XPATH, xpath_becas)))
                     
                     for elem in elementos:
                         href = elem.get_attribute("href")
-                        if href and ("page_id" in href or "becas" in href.lower()):
-                            logging.info(f"Subpágina encontrada para {anio}: {href}")
-                            driver.get(href)
-                            time.sleep(4)
-                            self.extraer_documentos(driver, enlaces)
-                            titulo_encontrado = f"Agrocap - Becas Laborales {anio}"
-                            return enlaces, titulo_encontrado
+                        if href:
+                            url_becas = href
+                            logging.info(f"✅ Encontrada página de Becas Laborales {anio}: {url_becas}")
+                            break
                 except:
                     continue
                     
-            # Si no encontró nada, intentar búsqueda más amplia
-            logging.warning("No se encontró estructura por año. Buscando de forma general...")
+            if not url_becas:
+                # Búsqueda más amplia si no encuentra por año
+                try:
+                    xpath_general = "//a[contains(text(), 'Becas Laborales')]"
+                    elem = wait.until(EC.presence_of_element_located((By.XPATH, xpath_general)))
+                    url_becas = elem.get_attribute("href")
+                except:
+                    raise Exception("No se encontró la sección de Becas Laborales")
+            
+            # Ir a la página de becas
+            driver.get(url_becas)
+            time.sleep(5)
+            
+            # Extraer todos los enlaces a PDFs y documentos
             self.extraer_documentos(driver, enlaces)
             
+            if not enlaces:
+                logging.warning("No se encontraron documentos PDF. Intentando búsqueda más amplia...")
+                self.extraer_documentos_amplia(driver, enlaces)
+                
         except TimeoutException:
-            logging.error("Timeout en Agrocap - La página está muy lenta o cambió de estructura")
+            logging.error("Timeout en Agrocap - Página muy lenta o cambió de estructura")
             raise Exception("La página web de Agrocap está caída o cambió su diseño (Timeout).")
         except Exception as e:
             logging.error(f"Error en Agrocap: {e}")
@@ -82,13 +90,37 @@ class AgrocapScraperSelenium:
         return enlaces, titulo_encontrado
 
     def extraer_documentos(self, driver, enlaces):
-        """Extrae botones de descarga"""
+        """Extrae enlaces de documentos (PDF, XLSX, ZIP, etc.)"""
         try:
-            buttons = driver.find_elements(By.XPATH, "//a[contains(@class, 'elementor-button-link') or contains(@href, '.pdf') or contains(@href, '.doc')]")
-            for btn in buttons:
-                href = btn.get_attribute("href")
-                if href and any(ext in href.lower() for ext in ['.pdf', '.docx', '.doc', '.zip', '.xlsx']):
+            # Buscar todos los enlaces que terminen en extensiones de archivos
+            xpath_docs = "//a[contains(@href, '.pdf') or contains(@href, '.xlsx') or contains(@href, '.zip') or contains(@href, '.doc')]"
+            documentos = driver.find_elements(By.XPATH, xpath_docs)
+            
+            for doc in documentos:
+                href = doc.get_attribute("href")
+                if href:
                     enlaces.add(href)
-            logging.info(f"✅ Encontrados {len(enlaces)} documentos")
+                    
+            logging.info(f"✅ Extraídos {len(enlaces)} documentos desde la página de becas.")
         except Exception as e:
             logging.warning(f"Error extrayendo documentos: {e}")
+
+    def extraer_documentos_amplia(self, driver, enlaces):
+        """Búsqueda más amplia de enlaces"""
+        try:
+            links = driver.find_elements(By.TAG_NAME, "a")
+            for link in links:
+                href = link.get_attribute("href")
+                if href and any(ext in href.lower() for ext in ['.pdf', '.xlsx', '.zip', '.docx', '.doc']):
+                    enlaces.add(href)
+        except:
+            pass
+
+# Bloque de prueba local
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    scraper = AgrocapScraperSelenium()
+    links, titulo = scraper.fetch_tender_links()
+    print(f"\n📌 {titulo}")
+    for link in sorted(links):
+        print(f"- {link}")
