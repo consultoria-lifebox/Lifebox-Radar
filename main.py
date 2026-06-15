@@ -117,11 +117,15 @@ def registrar_estado_scraper(portal, estado, mensaje="Funcionando correctamente"
     
     try:
         
+        from google.oauth2 import service_account
+        credenciales_gcp = service_account.Credentials.from_service_account_file("credenciales_gcp.json")
+        
         pd.io.gbq.to_gbq(
-            df_estado, 
-            destination_table='licitaciones.estado_scrapers', 
-            project_id=proyecto_id, 
-            if_exists='append'
+            df_estado,
+            destination_table='licitaciones.estado_scrapers',
+            project_id=proyecto_id,
+            if_exists='append',
+            credentials=credenciales_gcp
         )
     except Exception as e:
         logging.error(f"Error guardando el estado en BigQuery: {e}")
