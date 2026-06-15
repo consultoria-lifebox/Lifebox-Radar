@@ -106,7 +106,7 @@ def enviar_alerta_error(portal, mensaje_error):
 
 def registrar_estado_scraper(portal, estado, mensaje="Funcionando correctamente"):
     """Guarda el estado de salud de cada scraper en BigQuery"""
-    proyecto_id = "proyecto-life-box-licitaciones"
+    proyecto_id = "project-2c5ea44d-6d9d-4f1d-9a5"
     
     df_estado = pd.DataFrame([{
         "fecha_ejecucion": pd.Timestamp.now('America/Santiago'),
