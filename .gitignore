@@ -1,0 +1,6 @@
+credenciales_gcp.json
+temp_docs/
+__pycache__/
+estado_proforma.json
+.env
+bot_telegram.py
