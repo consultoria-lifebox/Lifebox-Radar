@@ -97,6 +97,11 @@ credenciales = service_account.Credentials.from_service_account_file(RUTA_CREDEN
 @st.cache_data(ttl=300) 
 def cargar_oportunidades_bq():
     try:
+        # --- INICIO BLOQUE DE DIAGNÓSTICO ---
+        import os
+        st.write(f"DEBUG: Ruta de credenciales configurada: {RUTA_CREDENCIALES}")
+        st.write(f"DEBUG: ¿Existe el archivo en esa ruta?: {os.path.exists(RUTA_CREDENCIALES)}")
+        # --- FIN BLOQUE DE DIAGNÓSTICO ---
         cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
         query_vencidos = f"""
             UPDATE `{ID_PROYECTO}.licitaciones.oportunidades`
