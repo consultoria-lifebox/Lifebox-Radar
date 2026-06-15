@@ -6,7 +6,7 @@ from google.oauth2 import service_account
 from google.cloud import bigquery
 from streamlit_autorefresh import st_autorefresh
 
-ID_PROYECTO = "proyecto-life-box-licitaciones" 
+ID_PROYECTO = "project-2c5ea44d-6d9d-4f1d-9a5" 
 RUTA_CREDENCIALES = "credenciales_gcp.json"
 
 # 1. CONFIGURACIÓN DE PÁGINA
