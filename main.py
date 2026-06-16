@@ -147,7 +147,8 @@ def orquestador():
         ("OTIC Sofofa", OticSofofaScraperSelenium()),
         ("CCC", CccScraperSelenium()),
         ("Franco Chileno", FrancoChilenoScraperSelenium()),
-        ("Wines of Chile", ChileVinosScraperSelenium())
+        ("Wines of Chile", ChileVinosScraperSelenium()),
+        ("OTIC del Comercio", OticComercioScraperSelenium())
     ]
 
     for nombre_portal, scraper in scrapers:
