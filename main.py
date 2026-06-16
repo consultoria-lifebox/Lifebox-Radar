@@ -18,6 +18,7 @@ from src.scrapers.francochileno import FrancoChilenoScraperSelenium
 from src.scrapers.winesofchile import ChileVinosScraperSelenium
 from src.scrapers.ccc import CccScraperSelenium
 from src.scrapers.oticcomercio import OticComercioScraperSelenium
+from src.scrapers.camacoes import CamacoesScraperSelenium
 from src.utils.analizador_inteligente import AnalizadorLicitaciones
 from src.utils.document_parser import DocumentAnalyzer
 from src.database.bq_client import BigQueryClient
@@ -148,7 +149,8 @@ def orquestador():
         ("CCC", CccScraperSelenium()),
         ("Franco Chileno", FrancoChilenoScraperSelenium()),
         ("Wines of Chile", ChileVinosScraperSelenium()),
-        ("OTIC del Comercio", OticComercioScraperSelenium())
+        ("OTIC del Comercio", OticComercioScraperSelenium()),
+        ("CAMACOES", CamacoesScraperSelenium())
     ]
 
     for nombre_portal, scraper in scrapers:
