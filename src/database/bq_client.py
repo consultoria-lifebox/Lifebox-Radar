@@ -2,21 +2,25 @@ import os
 import pandas as pd
 import logging
 
+from src.config import get_config
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class BigQueryClient:
-    def __init__(self, project_id, dataset_id, table_id, credentials_path):
-        self.project_id = project_id
-        self.dataset_id = dataset_id
-        self.table_id = table_id
+    def __init__(self, project_id=None, dataset_id=None, table_id=None, credentials_path=None):
+        config = get_config()
+        self.project_id = project_id or config.gcp.project_id
+        self.dataset_id = dataset_id or config.gcp.dataset_id
+        self.table_id = table_id or config.gcp.table_opportunities
+        self.credentials_path = credentials_path or config.gcp.credentials_path
         
         # 1. AUTENTICACIÓN
-        if not os.path.exists(credentials_path):
-            logging.error(f"🚨 No se encontró el archivo de credenciales en: {credentials_path}")
+        if not os.path.exists(self.credentials_path):
+            logging.error(f"🚨 No se encontró el archivo de credenciales en: {self.credentials_path}")
         else:
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.credentials_path
             
-        #Ruta hacia tabla
+        # Ruta hacia tabla
         self.destination_table = f"{self.dataset_id}.{self.table_id}"
 
     def inyectar_datos(self, df):

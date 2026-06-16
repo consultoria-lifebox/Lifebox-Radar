@@ -6,8 +6,11 @@ from google.oauth2 import service_account
 from google.cloud import bigquery
 from streamlit_autorefresh import st_autorefresh
 
-ID_PROYECTO = "project-2c5ea44d-6d9d-4f1d-9a5" 
-RUTA_CREDENCIALES = "credenciales_gcp.json"
+from src.config import get_config
+
+config = get_config()
+ID_PROYECTO = config.gcp.project_id
+RUTA_CREDENCIALES = config.gcp.credentials_path
 
 # 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(
@@ -97,11 +100,6 @@ credenciales = service_account.Credentials.from_service_account_file(RUTA_CREDEN
 @st.cache_data(ttl=300) 
 def cargar_oportunidades_bq():
     try:
-        # --- INICIO BLOQUE DE DIAGNÓSTICO ---
-        import os
-        st.write(f"DEBUG: Ruta de credenciales configurada: {RUTA_CREDENCIALES}")
-        st.write(f"DEBUG: ¿Existe el archivo en esa ruta?: {os.path.exists(RUTA_CREDENCIALES)}")
-        # --- FIN BLOQUE DE DIAGNÓSTICO ---
         cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
         query_vencidos = f"""
             UPDATE `{ID_PROYECTO}.licitaciones.oportunidades`

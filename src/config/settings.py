@@ -9,6 +9,10 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 @dataclass
 class GoogleCloudConfig:
@@ -29,6 +33,18 @@ class TelegramConfig:
     def is_configured(self) -> bool:
         """Verifica si Telegram está correctamente configurado"""
         return self.token is not None and self.chat_id is not None
+
+
+@dataclass
+class GroqConfig:
+    """Configuración de la API de Groq / Graq"""
+    api_key: Optional[str] = os.getenv("GROQ_API_KEY")
+
+
+@dataclass
+class ExternalConfig:
+    """Configuración externa y de licencia"""
+    url_gist: Optional[str] = os.getenv("URL_GIST")
 
 
 @dataclass
@@ -55,6 +71,8 @@ class Config:
     def __init__(self):
         self.gcp = GoogleCloudConfig()
         self.telegram = TelegramConfig()
+        self.groq = GroqConfig()
+        self.external = ExternalConfig()
         self.logging = LoggingConfig()
         self.scraper = ScraperConfig()
         self._validate()
@@ -70,12 +88,24 @@ class Config:
             logging.warning(
                 "⚠️ Telegram no configurado. Las notificaciones estarán deshabilitadas."
             )
+
+        if not self.groq.api_key:
+            logging.warning(
+                "⚠️ GROQ_API_KEY no configurada. El análisis de documentos quedará limitado."
+            )
+
+        if not self.external.url_gist:
+            logging.warning(
+                "⚠️ URL_GIST no configurada. La validación de licencia no funcionará."
+            )
     
     def to_dict(self) -> dict:
         """Retorna la configuración como diccionario"""
         return {
             "gcp": self.gcp.__dict__,
             "telegram": self.telegram.__dict__,
+            "groq": self.groq.__dict__,
+            "external": self.external.__dict__,
             "logging": self.logging.__dict__,
             "scraper": self.scraper.__dict__,
         }

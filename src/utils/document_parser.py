@@ -7,12 +7,16 @@ import time
 import PyPDF2 
 from groq import Groq
 
+from src.config import get_config
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class DocumentAnalyzer:
     def __init__(self):
-        # Lee la llave secreta desde GitHub Actions de forma segura
-        self.api_key = os.environ.get("GROQ_API_KEY")
+        config = get_config()
+        self.api_key = config.groq.api_key
+        if not self.api_key:
+            logging.warning("GROQ_API_KEY no está configurada. El parser de documentos funcionará en modo limitado.")
         self.client = Groq(api_key=self.api_key) if self.api_key else None
         
         # Modelo Llama 3 de 70 billones de parámetros
