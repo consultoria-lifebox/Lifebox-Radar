@@ -16,7 +16,7 @@ from src.scrapers.alianzapyme import AlianzaPymeScraperSelenium
 from src.scrapers.oticsosofa import OticSofofaScraperSelenium 
 from src.scrapers.francochileno import FrancoChilenoScraperSelenium
 from src.scrapers.winesofchile import ChileVinosScraperSelenium
-from src.scrapers.ccc import CccScraperSelenium
+from src.scrapers.ccc import CchcScraperSelenium
 from src.scrapers.oticcomercio import OticComercioScraperSelenium
 from src.scrapers.camacoes import CamacoesScraperSelenium
 from src.scrapers.asimet import AsimetScraperSelenium
@@ -148,7 +148,7 @@ def orquestador():
         ("Banotic", BanoticScraperSelenium()),
         ("Alianza Pyme", AlianzaPymeScraperSelenium()),
         ("OTIC Sofofa", OticSofofaScraperSelenium()),
-        ("CCC", CccScraperSelenium()),
+        ("CChC", CchcScraperSelenium()),
         ("Franco Chileno", FrancoChilenoScraperSelenium()),
         ("Wines of Chile", ChileVinosScraperSelenium()),
         ("OTIC del Comercio", OticComercioScraperSelenium()),
