@@ -261,7 +261,7 @@ with tab_principal:
     if st.toggle("🗑️ Abrir Papelera de Reciclaje"):
         st.markdown("#### Documentos Descartados")
         try:
-            df_papelera = pd.read_gbq(f"SELECT fecha_deteccion, titulo_llamado_web, curso, region, comuna, link_documento FROM `{ID_PROYECTO}.licitaciones.oportunidades` WHERE estado = 'Descartado' ORDER BY fecha_deteccion DESC", project_id=ID_PROYECTO, credentials=credenciales)
+            df_papelera = pandas_gbq.read_gbq(f"SELECT fecha_deteccion, titulo_llamado_web, curso, region, comuna, link_documento FROM `{ID_PROYECTO}.licitaciones.oportunidades` WHERE estado = 'Descartado' ORDER BY fecha_deteccion DESC", project_id=ID_PROYECTO, credentials=credenciales)
             if df_papelera.empty:
                 st.info("La papelera está vacía.")
             else:

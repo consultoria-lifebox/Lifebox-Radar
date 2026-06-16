@@ -2,6 +2,7 @@ import os
 import logging
 import requests
 import pandas as pd
+import pandas_gbq
 from urllib.parse import unquote
 from google.oauth2 import service_account
 
@@ -17,6 +18,11 @@ from src.scrapers.oticsosofa import OticSofofaScraperSelenium
 from src.scrapers.francochileno import FrancoChilenoScraperSelenium
 from src.scrapers.winesofchile import ChileVinosScraperSelenium
 from src.scrapers.ccc import CccScraperSelenium
+from src.scrapers.asimet import AsimetScraperSelenium
+from src.scrapers.otic_del_comercio import OticDelComercioScraperSelenium
+from src.scrapers.corficap import CorficapScraperSelenium
+from src.scrapers.camacoes import CamacoesScraperSelenium
+from src.scrapers.cgci import CgciScraperSelenium
 from src.utils.analizador_inteligente import AnalizadorLicitaciones
 from src.utils.document_parser import DocumentAnalyzer
 from src.database.bq_client import BigQueryClient
@@ -29,7 +35,7 @@ def obtener_archivos_conocidos():
         credenciales = service_account.Credentials.from_service_account_file("credenciales_gcp.json")
         
         query = "SELECT DISTINCT link_documento, titulo_llamado_web FROM `proyecto-life-box-licitaciones.licitaciones.oportunidades`"
-        df_historial = pd.read_gbq(query, project_id="proyecto-life-box-licitaciones", credentials=credenciales)
+        df_historial = pandas_gbq.read_gbq(query, project_id="proyecto-life-box-licitaciones", credentials=credenciales)
         
         archivos_en_bq = set()
         for _, fila in df_historial.iterrows():
@@ -136,20 +142,33 @@ def orquestador():
     archivos_conocidos = obtener_archivos_conocidos()
     analizador = AnalizadorLicitaciones()
     
-    scrapers = [
-        ("Proforma", ProformaScraperSelenium()),
-        ("OTIC", OticScraperSelenium()),
-        ("Pro Aconcagua", ProAconcaguaScraperSelenium()),
-        ("Agrocap", AgrocapScraperSelenium()), 
-        ("Banotic", BanoticScraperSelenium()),
-        ("Alianza Pyme", AlianzaPymeScraperSelenium()),
-        ("OTIC Sofofa", OticSofofaScraperSelenium()),
-        ("CCC", CccScraperSelenium()),
-        ("Franco Chileno", FrancoChilenoScraperSelenium()),
-        ("Wines of Chile", ChileVinosScraperSelenium())
+    # Lista de scrapers a ejecutar (sin instanciarlos aún)
+    scrapers_config = [
+        ("Proforma", ProformaScraperSelenium),
+        ("OTIC", OticScraperSelenium),
+        ("Pro Aconcagua", ProAconcaguaScraperSelenium),
+        ("Agrocap", AgrocapScraperSelenium), 
+        ("Banotic", BanoticScraperSelenium),
+        ("Alianza Pyme", AlianzaPymeScraperSelenium),
+        ("OTIC Sofofa", OticSofofaScraperSelenium),
+        ("CCC", CccScraperSelenium),
+        ("Franco Chileno", FrancoChilenoScraperSelenium),
+        ("Wines of Chile", ChileVinosScraperSelenium),
+        ("Asimet", AsimetScraperSelenium),
+        ("OTIC del Comercio", OticDelComercioScraperSelenium),
+        ("Corficap", CorficapScraperSelenium),
+        ("Camacoes", CamacoesScraperSelenium),
+        ("CGCI", CgciScraperSelenium),
     ]
 
-    for nombre_portal, scraper in scrapers:
+    for nombre_portal, scraper_class in scrapers_config:
+        # Intentar instanciar el scraper; si falla, continuar con el siguiente
+        try:
+            scraper = scraper_class()
+        except Exception as e:
+            logging.error(f"❌ No se pudo inicializar scraper {nombre_portal}: {e}")
+            registrar_estado_scraper(nombre_portal, "ERROR", f"Error al inicializar: {str(e)[:200]}")
+            continue
         print("\n" + "="*50)
         logging.info(f"🚀 PATRULLANDO: {nombre_portal}")
         print("="*50)
