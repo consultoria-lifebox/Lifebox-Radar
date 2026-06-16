@@ -8,6 +8,7 @@ y notifica al usuario sobre nuevas oportunidades de capacitación.
 import os
 import logging
 import pandas as pd
+import pandas_gbq
 
 # Configuración
 from src.config import get_config
@@ -23,9 +24,15 @@ from src.scrapers.alianzapyme import AlianzaPymeScraperSelenium
 from src.scrapers.oticsosofa import OticSofofaScraperSelenium 
 from src.scrapers.francochileno import FrancoChilenoScraperSelenium
 from src.scrapers.winesofchile import ChileVinosScraperSelenium
-from src.scrapers.ccc import CccScraperSelenium
+from src.scrapers.ccc import CccScraperSelenium # Mantener para lógica específica
+from src.scrapers.asimet import AsimetScraperSelenium
+from src.scrapers.otic_del_comercio import OticDelComercioScraperSelenium
+from src.scrapers.corficap import CorficapScraperSelenium
+from src.scrapers.camacoes import CamacoeScraperSelenium
+from src.scrapers.cgci import CgciScraperSelenium
 
 # Utilidades
+from src.core.base_scraper_simple import SimpleBaseScraper
 from src.utils.sec import verificar_lic
 from src.utils.analizador_inteligente import AnalizadorLicitaciones
 from src.utils.document_parser import DocumentAnalyzer
@@ -54,24 +61,39 @@ def main():
         # Crear orquestador
         orchestrator = Orchestrator()
         
-        # Definir scrapers a ejecutar
-        scrapers = [
-            ("Proforma", ProformaScraperSelenium()),
-            ("OTIC", OticScraperSelenium()),
-            ("Pro Aconcagua", ProAconcaguaScraperSelenium()),
-            ("Agrocap", AgrocapScraperSelenium()), 
-            ("Banotic", BanoticScraperSelenium()),
-            ("Alianza Pyme", AlianzaPymeScraperSelenium()),
-            ("OTIC Sofofa", OticSofofaScraperSelenium()),
-            ("CCC", CccScraperSelenium()),
-            ("Franco Chileno", FrancoChilenoScraperSelenium()),
-            ("Wines of Chile", ChileVinosScraperSelenium())
+        # Definir scrapers a ejecutar con lazy instantiation
+        scrapers_config = [
+            ("Proforma", ProformaScraperSelenium),
+            ("OTIC", OticScraperSelenium),
+            ("Pro Aconcagua", ProAconcaguaScraperSelenium),
+            ("Agrocap", AgrocapScraperSelenium), 
+            ("Banotic", BanoticScraperSelenium),
+            ("Alianza Pyme", AlianzaPymeScraperSelenium),
+            ("OTIC Sofofa", OticSofofaScraperSelenium),
+            ("CCC", CccScraperSelenium),
+            ("Franco Chileno", FrancoChilenoScraperSelenium),
+            ("Wines of Chile", ChileVinosScraperSelenium),
+            ("ASIMET", AsimetScraperSelenium),
+            ("OTIC del Comercio", OticDelComercioScraperSelenium),
+            ("CORFICAP", CorficapScraperSelenium),
+            ("CAMACOES", CamacoeScraperSelenium),
+            ("CGCI", CgciScraperSelenium)
         ]
         
-        # Ejecutar orquestación
+        # Ejecutar orquestación con lazy instantiation
         logger.info("=" * 70)
         logger.info("🚀 INICIANDO SISTEMA DE VIGILANCIA MULTI-PORTAL")
         logger.info("=" * 70)
+        
+        scrapers = []
+        for nombre_portal, scraper_class in scrapers_config:
+            try:
+                scraper_instance = scraper_class()
+                scrapers.append((nombre_portal, scraper_instance))
+                logger.info(f"✅ {nombre_portal} inicializado correctamente")
+            except Exception as e:
+                logger.error(f"❌ No se pudo inicializar scraper de {nombre_portal}: {str(e)}")
+                continue
         
         resultados = orchestrator.procesar_licitaciones(scrapers)
         

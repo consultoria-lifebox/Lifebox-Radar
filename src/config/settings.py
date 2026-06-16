@@ -58,6 +58,7 @@ class LoggingConfig:
 @dataclass
 class ScraperConfig:
     """Configuración de scrapers"""
+    browser: str = os.getenv("SCRAPER_BROWSER", "chrome").lower()
     timeout: int = 30  # segundos
     headless: bool = True
     disable_gpu: bool = True

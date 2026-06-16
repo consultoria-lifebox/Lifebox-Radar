@@ -323,11 +323,10 @@ with tab_salud:
                 if portal == "SISTEMA CORE":
                     st.error("### 🚫 ACCESO INVALIDO")
                     st.markdown("""
-                        <div style="background-color: #fee2e2; border-left: 6px solid #ef4444; padding: 20px; border-radius: 5px;">
-                            <h2 style="color: #991b1b;">Error 403: Licencia no válida</h2>
-                            <p style="color: #991b1b;">Servicio con problema. 
-                            Por favor, contactar al +56989299709 o tomasgonzalez2801@gmail.com.</p>
-                        </div>
+                    <div style="background-color: #fee2e2; border-left: 6px solid #ef4444; padding: 20px; border-radius: 5px;">
+                        <h2 style="color: #991b1b;">Error de Licencia</h2>
+                        <p style="color: #991b1b;">La licencia del sistema no es válida o ha expirado. Por favor, contacte a soporte para regularizar el servicio.</p>
+                    </div>
                     """, unsafe_allow_html=True)
                     st.stop() 
 

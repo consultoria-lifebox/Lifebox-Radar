@@ -11,3 +11,5 @@ requests
 beautifulsoup4
 openpyxl
 python-dotenv
+
+groq

@@ -10,13 +10,10 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Set, Optional
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
-from webdriver_manager.chrome import ChromeDriverManager
 
 from src.config import get_config
 
@@ -54,22 +51,43 @@ class BaseScraper(ABC):
         Returns:
             Chrome WebDriver configurado
         """
-        self.logger.info(f"Inicializando navegador para {self.portal_name}...")
+        browser = self.config.scraper.browser
+        self.logger.info(f"Inicializando navegador {browser} para {self.portal_name}...")
         
-        options = Options()
-        options.page_load_strategy = self.config.scraper.page_load_strategy
-        options.add_argument("--disable-gpu" if self.config.scraper.disable_gpu else "")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument(f"user-agent={self.config.scraper.user_agent}")
-        
-        if self.config.scraper.headless:
-            options.add_argument("--headless=new")
-        
-        driver = webdriver.Chrome(
-            service=ChromeService(ChromeDriverManager().install()),
-            options=options
-        )
+        if browser == "firefox":
+            from selenium.webdriver.firefox.options import Options as FirefoxOptions
+            from selenium.webdriver.firefox.service import Service as FirefoxService
+            from webdriver_manager.firefox import GeckoDriverManager
+            options = FirefoxOptions()
+            options.page_load_strategy = self.config.scraper.page_load_strategy
+            if self.config.scraper.headless:
+                options.add_argument("--headless")
+            driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()), options=options)
+            
+        elif browser == "edge":
+            from selenium.webdriver.edge.options import Options as EdgeOptions
+            from selenium.webdriver.edge.service import Service as EdgeService
+            from webdriver_manager.microsoft import EdgeChromiumDriverManager
+            options = EdgeOptions()
+            options.page_load_strategy = self.config.scraper.page_load_strategy
+            if self.config.scraper.headless:
+                options.add_argument("headless")
+            driver = webdriver.Edge(service=EdgeService(EdgeChromiumDriverManager().install()), options=options)
+            
+        else:
+            from selenium.webdriver.chrome.options import Options as ChromeOptions
+            from selenium.webdriver.chrome.service import Service as ChromeService
+            from webdriver_manager.chrome import ChromeDriverManager
+            options = ChromeOptions()
+            options.page_load_strategy = self.config.scraper.page_load_strategy
+            options.add_argument("--disable-gpu" if self.config.scraper.disable_gpu else "")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument(f"user-agent={self.config.scraper.user_agent}")
+            if self.config.scraper.headless:
+                options.add_argument("--headless=new")
+            driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+            
         driver.set_page_load_timeout(self.config.scraper.timeout)
         
         return driver
