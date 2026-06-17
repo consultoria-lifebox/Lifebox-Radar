@@ -34,8 +34,8 @@ def obtener_archivos_conocidos():
     try:
         credenciales = service_account.Credentials.from_service_account_file("credenciales_gcp.json")
         
-        query = "SELECT DISTINCT link_documento, titulo_llamado_web FROM `proyecto-life-box-licitaciones.licitaciones.oportunidades`"
-        df_historial = pd.read_gbq(query, project_id="proyecto-life-box-licitaciones", credentials=credenciales)
+        query = "SELECT DISTINCT link_documento, titulo_llamado_web FROM `My First Proyect.licitaciones.oportunidades`"
+        df_historial = pd.read_gbq(query, project_id="project-2c5ea44d-6d9d-4f1d-9a5", credentials=credenciales)
         
         archivos_en_bq = set()
         for _, fila in df_historial.iterrows():
