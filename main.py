@@ -34,7 +34,7 @@ def obtener_archivos_conocidos():
     try:
         credenciales = service_account.Credentials.from_service_account_file("credenciales_gcp.json")
         
-        query = "SELECT DISTINCT link_documento, titulo_llamado_web FROM `My First Project.licitaciones.oportunidades`"
+        query = "SELECT DISTINCT link_documento, titulo_llamado_web FROM `project-2c5ea44d-6d9d-4f1d-9a5.licitaciones.oportunidades`"
         df_historial = pd.read_gbq(query, project_id="project-2c5ea44d-6d9d-4f1d-9a5", credentials=credenciales)
         
         archivos_en_bq = set()
@@ -194,7 +194,7 @@ def orquestador():
                     df_drive['fecha_cierre'] = "Drive Manual"
                     df_drive['estado'] = "Revisión Manual"
 
-                    cliente = BigQueryClient("proyecto-life-box-licitaciones", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                    cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
                     cliente.inyectar_datos(df_drive)
                     
                     
@@ -305,7 +305,7 @@ def orquestador():
                         df_vencida['fecha_cierre'] = fecha_cierre
                         df_vencida['estado'] = "Vencido"
 
-                        cliente = BigQueryClient("proyecto-life-box-licitaciones", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                        cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
                         cliente.inyectar_datos(df_vencida)
                         archivos_conocidos.add(nombre_ganador)
                         
@@ -327,7 +327,7 @@ def orquestador():
                                 df['fecha_cierre'] = fecha_cierre      
                                 df['estado'] = estado_licitacion       
                                 
-                                cliente = BigQueryClient("proyecto-life-box-licitaciones", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                                cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
                                 if cliente.inyectar_datos(df):
                                     enviar_notificacion(titulo_web, len(hallazgos), nombre_portal)
                                     archivos_conocidos.add(nombre_ganador)
