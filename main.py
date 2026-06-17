@@ -150,7 +150,7 @@ def orquestador():
         ("Banotic", BanoticScraperSelenium()),
         ("Alianza Pyme", AlianzaPymeScraperSelenium()),
         ("OTIC Sofofa", OticSofofaScraperSelenium()),
-        ("CChC", CccScraperSelenium()),
+        ("CCC", CccScraperSelenium()),
         ("Franco Chileno", FrancoChilenoScraperSelenium()),
         ("Wines of Chile", ChileVinosScraperSelenium()),
         ("OTIC del Comercio", OticComercioScraperSelenium()),
