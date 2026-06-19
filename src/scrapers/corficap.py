@@ -28,7 +28,7 @@ class CorficapScraperSelenium:
         options.add_argument("--headless=new")           # Modo invisible
         
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-        driver.set_page_load_timeout(60)
+        driver.set_page_load_timeout(45)
         return driver
 
     def fetch_tender_links(self):
@@ -69,7 +69,7 @@ class CorficapScraperSelenium:
             # PASO 2: Entrar a la noticia detectada y extraer sus archivos adjuntos (Bases, Anexos)
             if urls_noticias_descubiertas:
                 # Priorizamos revisar lo más reciente primero (Año Actual)
-                lista_ordenada = sorted(list(urls_noticias_discovered), key=lambda x: x[1], reverse=True)
+                lista_ordenada = sorted(list(urls_noticias_descubiertas), key=lambda x: x[1], reverse=True)
                 
                 for url_noticia, anio_target in lista_ordenada:
                     logging.info(f"Ingresando a la publicación específica: {url_noticia}")
@@ -100,7 +100,7 @@ class CorficapScraperSelenium:
                         break # Rompemos el ciclo al consolidar la información más reciente
             
             if not hubo_exito:
-                raise Exception("Cambio de diseño: No se encontraron publicaciones ni bases vigentes en la web de CORFICAP.")
+                logging.info("No se encontraron publicaciones de licitaciones vigentes en CORFICAP.")
 
             return enlaces_encontrados, titulo_proceso_encontrado
 

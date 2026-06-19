@@ -106,7 +106,7 @@ class PromauleScraperSelenium:
                         hubo_exito = True
 
             if not enlaces_encontrados:
-                raise Exception("Cambio de diseño: No se encontraron documentos ni enlaces de licitación válidos en PROMAULE.")
+                logging.info("No se encontraron documentos de licitación vigentes en PROMAULE.")
 
             return enlaces_encontrados, titulo_proceso_encontrado
 
