@@ -3,6 +3,7 @@ import logging
 import requests
 import pandas as pd
 import time
+from dotenv import load_dotenv
 from urllib.parse import unquote
 from google.oauth2 import service_account
 
@@ -27,7 +28,9 @@ from src.scrapers.indupan import IndupanScraperSelenium
 from src.utils.analizador_inteligente import AnalizadorLicitaciones
 from src.utils.document_parser import DocumentAnalyzer
 from src.database.bq_client import BigQueryClient
+from src.utils.notificador import Notificador
 
+load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def obtener_archivos_conocidos():
@@ -58,63 +61,6 @@ def obtener_archivos_conocidos():
     except Exception as e:
         logging.warning(f"⚠️ Aviso: No se pudo leer el historial: {e}")
         return set(), set()
-
-def enviar_notificacion(titulo, cantidad, portal, link_especial=None):
-    # --- CONFIGURACIÓN TELEGRAM ---
-    TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-    CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-    
-    if not TELEGRAM_TOKEN or not CHAT_ID:
-        logging.error("⚠️ Faltan las credenciales de Telegram en las variables de entorno.")
-        return
-
-
-    # Esto evita que los guiones bajos en los links o títulos rompan Telegram
-    if link_especial: 
-        contenido = f"🚨 <b>¡NUEVA PUBLICACIÓN EN {portal.upper()}!</b> 🚨\nProceso: <b>{titulo}</b>\n⚠️ <i>Este portal usa Drive. Revisar manualmente:</i> {link_especial}"
-    else: 
-        contenido = f"🚨 <b>¡NUEVA LICITACIÓN EN {portal.upper()}!</b> 🚨\nProceso: <b>{titulo}</b>\n🎯 Se inyectaron <b>{cantidad}</b> oportunidades en BigQuery."
-    
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": CHAT_ID,
-        "text": contenido,
-        "parse_mode": "HTML"  
-    }
-    
-    try:
-        respuesta = requests.post(url, json=payload)
-        if respuesta.status_code == 200:
-            logging.info("✅ Notificación enviada a Telegram directo a tu teléfono.")
-        else:
-            logging.error(f"Telegram rechazó el envío: {respuesta.text}")
-    except Exception as e:
-        logging.error(f"Error conectando con la API de Telegram: {e}")
-
-def enviar_alerta_error(portal, mensaje_error):
-    """Envía un mensaje de emergencia a Telegram cuando un scraper falla"""
-    TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-    CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-    
-    if not TELEGRAM_TOKEN or not CHAT_ID: return
-
-    # error corto paara no colapsar telegram
-    error_corto = str(mensaje_error)[:200]
-    
-    contenido = (
-        f"🚨 *¡ALERTA CRÍTICA DE SCRAPER!* 🚨\n\n"
-        f"🛑 *Portal Caído:* {portal}\n"
-        f"⚠️ *Motivo:* `{error_corto}...`\n\n"
-        f"🛠️ _Revisa el código, es posible que la página haya cambiado su diseño._"
-    )
-    
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": contenido, "parse_mode": "Markdown"}
-    
-    try:
-        requests.post(url, json=payload)
-    except Exception as e:
-        logging.error(f"No se pudo avisar a Telegram del error: {e}")
 
 def registrar_estado_scraper(portal, estado, mensaje="Funcionando correctamente"):
     """Guarda el estado de salud de cada scraper en BigQuery"""
@@ -147,6 +93,7 @@ def orquestador():
     logging.info("=== INICIANDO SISTEMA DE VIGILANCIA MULTI-PORTAL ===")
     memoria_general, memoria_oportunidades = obtener_archivos_conocidos()
     analizador = AnalizadorLicitaciones()
+    notificador = Notificador()
     
     scrapers = [
         ("Proforma", ProformaScraperSelenium()),
@@ -168,215 +115,216 @@ def orquestador():
     ]
 
     for nombre_portal, scraper in scrapers:
-        print("\n" + "="*50)
-        logging.info(f"🚀 PATRULLANDO: {nombre_portal}")
-        print("="*50)
-        
-        # --- LÓGICA DE REINTENTOS ---
-        max_intentos = 3
-        for intento in range(max_intentos):
-            try:
-                enlaces, titulo_web = scraper.fetch_tender_links()
-                # Si llegamos aquí, el scraper tuvo éxito. Salimos del bucle de reintentos.
-                break
-            except Exception as e:
-                logging.warning(f"⚠️ Intento {intento + 1}/{max_intentos} falló para {nombre_portal}: {e}")
-                if intento < max_intentos - 1:
-                    espera = (intento + 1) * 30  # Espera 30s, luego 60s
-                    logging.info(f"Pausando por {espera} segundos antes de reintentar...")
-                    time.sleep(espera)
-                else:
-                    # Si todos los intentos fallan, se lanza la excepción para que el orquestador la capture.
-                    raise e
-        # -----------------------------
-
-        if not enlaces:
-            logging.info(f"⏭️ No se obtuvieron datos en {nombre_portal}. Saltando al siguiente portal...")
-            registrar_estado_scraper(nombre_portal, "OK", "Sin datos nuevos o error interno del scraper")
-            continue
-
-        link_drive = next((l for l in enlaces if "drive.google.com" in l), None)
-        if link_drive:
-            if titulo_web not in memoria_general:
-                print(f"🚨 ¡ALERTA MANUAL! {nombre_portal} usa una carpeta de Drive. Enviando aviso al equipo...")
-                enviar_notificacion(titulo_web, 0, nombre_portal, link_drive)
-                memoria_general.add(titulo_web)
-                
-                
-                df_drive = pd.DataFrame([{
-                    "palabra_clave": "N/A", "curso": "Carpeta de Drive (Aviso ya enviado)", 
-                    "region": "N/A", "comuna": "N/A", "cupos": "0", "horas": "0", "modalidad": "N/A", "fila": 0
-                }])
-                df_drive['link_documento'] = link_drive
-                df_drive['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
-                df_drive['origen_web'] = nombre_portal
-                df_drive['titulo_llamado_web'] = titulo_web
-                df_drive['fecha_cierre'] = "Drive Manual"
-                df_drive['estado'] = "Revisión Manual"
-
-                cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
-                cliente.inyectar_datos(df_drive)
-                
-                
-            else:
-                print(f"✅ La carpeta de Drive de {nombre_portal} ya fue notificada. Todo al día.")
+        try:
+            print("\n" + "="*50)
+            logging.info(f"🚀 PATRULLANDO: {nombre_portal}")
+            print("="*50)
             
-            registrar_estado_scraper(nombre_portal, "OK", "Usa carpeta de Drive") 
-            continue
+            # --- LÓGICA DE REINTENTOS ---
+            max_intentos = 3
+            for intento in range(max_intentos):
+                try:
+                    enlaces, titulo_web = scraper.fetch_tender_links()
+                    # Si llegamos aquí, el scraper tuvo éxito. Salimos del bucle de reintentos.
+                    break
+                except Exception as e:
+                    logging.warning(f"⚠️ Intento {intento + 1}/{max_intentos} falló para {nombre_portal}: {e}")
+                    if intento < max_intentos - 1:
+                        espera = (intento + 1) * 30  # Espera 30s, luego 60s
+                        logging.info(f"Pausando por {espera} segundos antes de reintentar...")
+                        time.sleep(espera)
+                    else:
+                        # Si todos los intentos fallan, se lanza la excepción para que el orquestador la capture.
+                        raise e
+            # -----------------------------
 
-        
+            if not enlaces:
+                logging.info(f"⏭️ No se obtuvieron datos en {nombre_portal}. Saltando al siguiente portal...")
+                registrar_estado_scraper(nombre_portal, "OK", "Sin datos nuevos o error interno del scraper")
+                continue
 
-        logging.info(f"🔍 Evaluando {len(enlaces)} documentos encontrados en {nombre_portal}...")
-        planes_detectados = []
-        links_pdfs = [] 
-        
-        for link_original in enlaces:
-            # 1. Limpiar link
-            link_limpio = link_original.split('#')[0] 
-            
-            # 2. saca nombre inyectado
-            if "#" in link_original:
-                nombre = unquote(link_original.split('#')[-1].strip())
-            else:
-                nombre = unquote(link_original.split('/')[-1].split('?')[0].strip())
-            
-            # 3. Clasifica excel usando nombre
-            if "EXCEL CLAVE" in analizador.clasificar_archivo(nombre):
-                planes_detectados.append((nombre, link_limpio))
-            
-            # 4. ClasificarRRR PDFs
-            elif nombre.lower().endswith('.pdf') or '.pdf?' in nombre.lower():
-                links_pdfs.append((nombre, link_limpio))
-        
-        if planes_detectados:
-            nombres_planes = [p[0] for p in planes_detectados]
-            nombre_ganador = analizador.seleccionar_plan_mas_reciente(nombres_planes)
-            url_ganador = next(p[1] for p in planes_detectados if p[0] == nombre_ganador)
-            
-            if nombre_ganador in memoria_general:
-                print(f"✅ El documento ({nombre_ganador}) de {nombre_portal} ya está inyectado. Todo al día.")
-            else:
-                print(f"🎯 DOCUMENTO OBJETIVO INÉDITO EN {nombre_portal}: {nombre_ganador}")
-                lector = DocumentAnalyzer()
-                
-                # ==========================================
-                # EXTRACCIÓN DE FECHA DESDE EL PDF
-                # ==========================================
-                fecha_cierre = "No especificada"
-                estado_licitacion = "Activo"
-                url_pdf_fecha = None
-                
-                # 1. Búsqued PRIORIDAD
-                for nombre_pdf, link_pdf in links_pdfs:
-                    nom_bajo = nombre_pdf.lower()
-                    if any(x in nom_bajo for x in ['cronograma', 'anexo 1', 'anexo-1', 'anexo1', 'anexo n°1', 'calendario']):
-                        url_pdf_fecha = link_pdf
-                        break
-                
-                # 2. Búsqueda PRIORIDAD menor
-                if not url_pdf_fecha:
-                    for nombre_pdf, link_pdf in links_pdfs:
-                        nom_bajo = nombre_pdf.lower()
-                        if any(x in nom_bajo for x in ['base', 'anexo']):
-                            if not any(basura in nom_bajo for basura in ['modifica', 'r.e.', 'resolucion', 'ord', 'ordinario']):
-                                url_pdf_fecha = link_pdf
-                                break
-                
-                
-                if not url_pdf_fecha and links_pdfs:
-                    url_pdf_fecha = links_pdfs[0][1]
+            link_drive = next((l for l in enlaces if "drive.google.com" in l), None)
+            if link_drive:
+                if titulo_web not in memoria_general:
+                    print(f"🚨 ¡ALERTA MANUAL! {nombre_portal} usa una carpeta de Drive. Enviando aviso al equipo...")
+                    notificador.notificar_exito(titulo_web, 0, nombre_portal, link_especial=link_drive)
+                    memoria_general.add(titulo_web)
                     
-                if url_pdf_fecha:
-                    print(f"📄 Descargando PDF para extraer fecha: {unquote(url_pdf_fecha.split('/')[-1])}")
-                    ruta_pdf = lector.descargar_archivo(url_pdf_fecha)
-                    if ruta_pdf:
-                        fecha_cierre = lector.extraer_fecha_pdf(ruta_pdf)
-                        os.remove(ruta_pdf) 
-                        
-                        if fecha_cierre != "No especificada":
-                            try:
-                                fecha_limite_dt = pd.to_datetime(fecha_cierre, format='%Y-%m-%d')
-                                fecha_hoy_dt = pd.Timestamp.now('America/Santiago').normalize().tz_localize(None)
-                                
-                                if fecha_limite_dt < fecha_hoy_dt:
-                                    estado_licitacion = "Vencido"
-                                    print(f"⚠️ LICITACIÓN EXPIRADA: La fecha de cierre ({fecha_cierre}) ya pasó.")
-                                else:
-                                    print(f"✅ LICITACIÓN VIGENTE: Cierra el {fecha_cierre}.")
-                            except Exception as e:
-                                logging.warning(f"No se pudo calcular el vencimiento para la fecha: {fecha_cierre}")
-                
-
-                # ==========================================
-                # DECISIÓN: ¿LEo EL EXCEL?
-                # ==========================================
-                if estado_licitacion == "Vencido":
-                    print(f"⏭️ AHORRO DE TOKENS: La licitación está vencida. Se descarta la lectura de cursos del Excel de {nombre_portal}.")
                     
-                    #Subo UNA sola fila "fantasma" a BigQuery para que el bot la recuerde mañana
-                    df_vencida = pd.DataFrame([{
-                        "palabra_clave": "N/A", "curso": "Licitación Vencida (Ignorada para ahorrar proceso)", 
+                    df_drive = pd.DataFrame([{
+                        "palabra_clave": "N/A", "curso": "Carpeta de Drive (Aviso ya enviado)", 
                         "region": "N/A", "comuna": "N/A", "cupos": "0", "horas": "0", "modalidad": "N/A", "fila": 0
                     }])
-                    df_vencida['link_documento'] = url_ganador.split('?')[0]
-                    df_vencida['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
-                    df_vencida['origen_web'] = nombre_portal
-                    df_vencida['titulo_llamado_web'] = titulo_web
-                    df_vencida['fecha_cierre'] = fecha_cierre
-                    df_vencida['estado'] = "Vencido"
+                    df_drive['link_documento'] = link_drive
+                    df_drive['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
+                    df_drive['origen_web'] = nombre_portal
+                    df_drive['titulo_llamado_web'] = titulo_web
+                    df_drive['fecha_cierre'] = "Drive Manual"
+                    df_drive['estado'] = "Revisión Manual"
 
                     cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
-                    cliente.inyectar_datos(df_vencida)
-                    memoria_general.add(nombre_ganador)
+                    cliente.inyectar_datos(df_drive)
+                    
                     
                 else:
-                    # ==========================================
-                    # LA LICITACIÓN ESTÁ VIGENTE, APLICO LA IA AL EXCEL
-                    # ==========================================
-                    ruta = lector.descargar_archivo(url_ganador)
+                    print(f"✅ La carpeta de Drive de {nombre_portal} ya fue notificada. Todo al día.")
+                
+                registrar_estado_scraper(nombre_portal, "OK", "Usa carpeta de Drive") 
+                continue
+
+            
+
+            logging.info(f"🔍 Evaluando {len(enlaces)} documentos encontrados en {nombre_portal}...")
+            planes_detectados = []
+            links_pdfs = [] 
+            
+            for link_original in enlaces:
+                # 1. Limpiar link
+                link_limpio = link_original.split('#')[0] 
+                
+                # 2. saca nombre inyectado
+                if "#" in link_original:
+                    nombre = unquote(link_original.split('#')[-1].strip())
+                else:
+                    nombre = unquote(link_original.split('/')[-1].split('?')[0].strip())
+                
+                # 3. Clasifica excel usando nombre
+                if "EXCEL CLAVE" in analizador.clasificar_archivo(nombre):
+                    planes_detectados.append((nombre, link_limpio))
+                
+                # 4. ClasificarRRR PDFs
+                elif nombre.lower().endswith('.pdf') or '.pdf?' in nombre.lower():
+                    links_pdfs.append((nombre, link_limpio))
+            
+            if planes_detectados:
+                nombres_planes = [p[0] for p in planes_detectados]
+                nombre_ganador = analizador.seleccionar_plan_mas_reciente(nombres_planes)
+                url_ganador = next(p[1] for p in planes_detectados if p[0] == nombre_ganador)
+                
+                if nombre_ganador in memoria_general:
+                    print(f"✅ El documento ({nombre_ganador}) de {nombre_portal} ya está inyectado. Todo al día.")
+                else:
+                    print(f"🎯 DOCUMENTO OBJETIVO INÉDITO EN {nombre_portal}: {nombre_ganador}")
+                    lector = DocumentAnalyzer()
                     
-                    if ruta:
-                        hallazgos = lector.analizar_excel(ruta, analizador.keywords_negocio)
-                        if hallazgos:
-                            # --- FILTRO ANTI-DUPLICADOS ---
-                            oportunidades_nuevas = []
-                            url_base_doc = url_ganador.split('?')[0]
-                            nombre_base_doc = unquote(url_base_doc.split('/')[-1].strip())
+                    # ==========================================
+                    # EXTRACCIÓN DE FECHA DESDE EL PDF
+                    # ==========================================
+                    fecha_cierre = "No especificada"
+                    estado_licitacion = "Activo"
+                    url_pdf_fecha = None
+                    
+                    # 1. Búsqued PRIORIDAD
+                    for nombre_pdf, link_pdf in links_pdfs:
+                        nom_bajo = nombre_pdf.lower()
+                        if any(x in nom_bajo for x in ['cronograma', 'anexo 1', 'anexo-1', 'anexo1', 'anexo n°1', 'calendario']):
+                            url_pdf_fecha = link_pdf
+                            break
+                    
+                    # 2. Búsqueda PRIORIDAD menor
+                    if not url_pdf_fecha:
+                        for nombre_pdf, link_pdf in links_pdfs:
+                            nom_bajo = nombre_pdf.lower()
+                            if any(x in nom_bajo for x in ['base', 'anexo']):
+                                if not any(basura in nom_bajo for basura in ['modifica', 'r.e.', 'resolucion', 'ord', 'ordinario']):
+                                    url_pdf_fecha = link_pdf
+                                    break
+                    
+                    
+                    if not url_pdf_fecha and links_pdfs:
+                        url_pdf_fecha = links_pdfs[0][1]
+                        
+                    if url_pdf_fecha:
+                        print(f"📄 Descargando PDF para extraer fecha: {unquote(url_pdf_fecha.split('/')[-1])}")
+                        ruta_pdf = lector.descargar_archivo(url_pdf_fecha)
+                        if ruta_pdf:
+                            fecha_cierre = lector.extraer_fecha_pdf(ruta_pdf)
+                            os.remove(ruta_pdf) 
                             
-                            for hallazgo in hallazgos:
-                                huella_hallazgo = f"{nombre_base_doc}|{hallazgo['curso']}|{hallazgo['region']}|{hallazgo['comuna']}"
-                                if huella_hallazgo not in memoria_oportunidades:
-                                    oportunidades_nuevas.append(hallazgo)
-                            
-                            if not oportunidades_nuevas:
-                                print(f"\n✅ Se encontraron {len(hallazgos)} cursos, pero todos ya estaban registrados. Todo al día.")
+                            if fecha_cierre != "No especificada":
+                                try:
+                                    fecha_limite_dt = pd.to_datetime(fecha_cierre, format='%Y-%m-%d')
+                                    fecha_hoy_dt = pd.Timestamp.now('America/Santiago').normalize().tz_localize(None)
+                                    
+                                    if fecha_limite_dt < fecha_hoy_dt:
+                                        estado_licitacion = "Vencido"
+                                        print(f"⚠️ LICITACIÓN EXPIRADA: La fecha de cierre ({fecha_cierre}) ya pasó.")
+                                    else:
+                                        print(f"✅ LICITACIÓN VIGENTE: Cierra el {fecha_cierre}.")
+                                except Exception as e:
+                                    logging.warning(f"No se pudo calcular el vencimiento para la fecha: {fecha_cierre}")
+                    
+
+                    # ==========================================
+                    # DECISIÓN: ¿LEo EL EXCEL?
+                    # ==========================================
+                    if estado_licitacion == "Vencido":
+                        print(f"⏭️ AHORRO DE TOKENS: La licitación está vencida. Se descarta la lectura de cursos del Excel de {nombre_portal}.")
+                        
+                        #Subo UNA sola fila "fantasma" a BigQuery para que el bot la recuerde mañana
+                        df_vencida = pd.DataFrame([{
+                            "palabra_clave": "N/A", "curso": "Licitación Vencida (Ignorada para ahorrar proceso)", 
+                            "region": "N/A", "comuna": "N/A", "cupos": "0", "horas": "0", "modalidad": "N/A", "fila": 0
+                        }])
+                        df_vencida['link_documento'] = url_ganador.split('?')[0]
+                        df_vencida['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
+                        df_vencida['origen_web'] = nombre_portal
+                        df_vencida['titulo_llamado_web'] = titulo_web
+                        df_vencida['fecha_cierre'] = fecha_cierre
+                        df_vencida['estado'] = "Vencido"
+
+                        cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                        cliente.inyectar_datos(df_vencida)
+                        memoria_general.add(nombre_ganador)
+                        
+                    else:
+                        # ==========================================
+                        # LA LICITACIÓN ESTÁ VIGENTE, APLICO LA IA AL EXCEL
+                        # ==========================================
+                        ruta = lector.descargar_archivo(url_ganador)
+                        
+                        if ruta:
+                            hallazgos = lector.analizar_excel(ruta, analizador.keywords_negocio)
+                            if hallazgos:
+                                # --- FILTRO ANTI-DUPLICADOS ---
+                                oportunidades_nuevas = []
+                                url_base_doc = url_ganador.split('?')[0]
+                                nombre_base_doc = unquote(url_base_doc.split('/')[-1].strip())
+                                
+                                for hallazgo in hallazgos:
+                                    huella_hallazgo = f"{nombre_base_doc}|{hallazgo['curso']}|{hallazgo['region']}|{hallazgo['comuna']}"
+                                    if huella_hallazgo not in memoria_oportunidades:
+                                        oportunidades_nuevas.append(hallazgo)
+                                
+                                if not oportunidades_nuevas:
+                                    print(f"\n✅ Se encontraron {len(hallazgos)} cursos, pero todos ya estaban registrados. Todo al día.")
+                                else:
+                                    print(f"\n🚨 ¡ALERTA! Se encontraron {len(oportunidades_nuevas)} oportunidades NUEVAS. Preparando inyección...")
+                                    df = pd.DataFrame(oportunidades_nuevas)
+                                df['link_documento'] = url_ganador.split('?')[0]
+                                df['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
+                                df['origen_web'] = nombre_portal
+                                df['titulo_llamado_web'] = titulo_web
+                                df['fecha_cierre'] = fecha_cierre      
+                                df['estado'] = estado_licitacion       
+                                
+                                cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                                if cliente.inyectar_datos(df):
+                                    notificador.notificar_exito(titulo_web, len(oportunidades_nuevas), nombre_portal)
+                                    memoria_general.add(nombre_ganador)
                             else:
-                                print(f"\n🚨 ¡ALERTA! Se encontraron {len(oportunidades_nuevas)} oportunidades NUEVAS. Preparando inyección...")
-                                df = pd.DataFrame(oportunidades_nuevas)
-                            df['link_documento'] = url_ganador.split('?')[0]
-                            df['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
-                            df['origen_web'] = nombre_portal
-                            df['titulo_llamado_web'] = titulo_web
-                            df['fecha_cierre'] = fecha_cierre      
-                            df['estado'] = estado_licitacion       
-                            
-                            cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
-                            if cliente.inyectar_datos(df):
-                                enviar_notificacion(titulo_web, len(oportunidades_nuevas), nombre_portal)
-                                memoria_general.add(nombre_ganador)
-                        else:
-                            print(f"\nℹ️ El Excel de {nombre_portal} no contiene cursos clave.")
-        else:
-            print(f"\nℹ️ No se detectó ningún Plan de Capacitación (Excel) en {nombre_portal}.")
+                                print(f"\nℹ️ El Excel de {nombre_portal} no contiene cursos clave.")
+            else:
+                print(f"\nℹ️ No se detectó ningún Plan de Capacitación (Excel) en {nombre_portal}.")
 
-        registrar_estado_scraper(nombre_portal, "OK")
+            registrar_estado_scraper(nombre_portal, "OK")
 
-    except Exception as e:
-        
-        logging.error(f"❌ Falla crítica ejecutando {nombre_portal}: {e}")
-        enviar_alerta_error(nombre_portal, e)
-        registrar_estado_scraper(nombre_portal, "ERROR", e)
-        continue # pasa al siguiente portal-
+        except Exception as e:
+            
+            logging.error(f"❌ Falla crítica ejecutando {nombre_portal}: {e}")
+            notificador.notificar_error(nombre_portal, e)
+            registrar_estado_scraper(nombre_portal, "ERROR", e)
+            continue # pasa al siguiente portal-
 
     logging.info("=== PATRULLAJE FINALIZADO EN TODOS LOS PORTALES ===")
 
