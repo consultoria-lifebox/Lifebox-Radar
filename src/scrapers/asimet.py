@@ -4,8 +4,9 @@ from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-from bs4 import BeautifulSoup
 from selenium.common.exceptions import TimeoutException, WebDriverException 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -36,19 +37,18 @@ class AsimetScraperSelenium:
         
         try:
             self.driver.get(self.url)
-            time.sleep(6) 
-
-            html_final = self.driver.page_source
-            soup = BeautifulSoup(html_final, 'html.parser')
+            wait = WebDriverWait(self.driver, 20)
             
-            logging.info("Extrayendo todos los documentos descargables de la página...")
+            logging.info("Esperando y extrayendo todos los documentos descargables de la página...")
             
-            # Buscamos TODOS los enlaces directos a archivos en la página para evitar que los filtros de texto nos bloqueen
-            for enlace in soup.find_all('a', href=True):
+            # Usamos Selenium directamente para mayor fiabilidad
+            xpath_docs = "//a[contains(@href, '.pdf') or contains(@href, '.docx') or contains(@href, '.doc') or contains(@href, '.xlsx') or contains(@href, '.xls') or contains(@href, '.zip')]"
+            
+            enlaces_elementos = wait.until(EC.presence_of_all_elements_located((By.XPATH, xpath_docs)))
+            
+            for enlace in enlaces_elementos:
                 href = enlace['href']
-                
-                # Si el enlace apunta a un documento, lo capturamos directamente
-                if any(ext in href.lower() for ext in ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.zip']):
+                if href:
                     url_completa = href if href.startswith("http") else f"https://www.oticasimet.cl{href}"
                     enlaces_encontrados.add(url_completa)
 

@@ -97,7 +97,8 @@ class IndupanScraperSelenium:
                             hubo_exito = True
 
             if not enlaces_encontrados:
-                raise Exception("Cambio de diseño: No se detectaron enlaces de licitaciones ni documentos en la OTIC de INDUPAN.")
+                # Si no se encuentra nada, no es un error, simplemente no hay datos nuevos.
+                logging.info("No se detectaron enlaces de licitaciones ni documentos vigentes en la OTIC de INDUPAN.")
 
             return enlaces_encontrados, titulo_proceso_encontrado
 

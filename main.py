@@ -31,27 +31,32 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def obtener_archivos_conocidos():
     logging.info("🧠 Consultando memoria en BigQuery...")
+    # Usamos dos sets: uno para documentos/títulos y otro para oportunidades específicas.
+    memoria_general = set()
+    memoria_oportunidades = set()
+    
     try:
         credenciales = service_account.Credentials.from_service_account_file("credenciales_gcp.json")
         
-        query = "SELECT DISTINCT link_documento, titulo_llamado_web FROM `project-2c5ea44d-6d9d-4f1d-9a5.licitaciones.oportunidades`"
+        query = "SELECT DISTINCT link_documento, titulo_llamado_web, curso, region, comuna FROM `project-2c5ea44d-6d9d-4f1d-9a5.licitaciones.oportunidades`"
         df_historial = pd.read_gbq(query, project_id="project-2c5ea44d-6d9d-4f1d-9a5", credentials=credenciales)
         
-        archivos_en_bq = set()
         for _, fila in df_historial.iterrows():
             link = fila['link_documento']
             if pd.notna(link):
                 nombre_archivo = unquote(str(link).split('/')[-1].split('?')[0].strip())
-                archivos_en_bq.add(nombre_archivo)
+                memoria_general.add(nombre_archivo)
+                # Creamos una "huella digital" para cada oportunidad
+                huella = f"{nombre_archivo}|{fila['curso']}|{fila['region']}|{fila['comuna']}"
+                memoria_oportunidades.add(huella)
             
             titulo = fila['titulo_llamado_web']
-            if pd.notna(titulo):
-                archivos_en_bq.add(str(titulo).strip())
+            if pd.notna(titulo): memoria_general.add(str(titulo).strip())
                 
-        return archivos_en_bq
+        return memoria_general, memoria_oportunidades
     except Exception as e:
         logging.warning(f"⚠️ Aviso: No se pudo leer el historial: {e}")
-        return set()
+        return set(), set()
 
 def enviar_notificacion(titulo, cantidad, portal, link_especial=None):
     # --- CONFIGURACIÓN TELEGRAM ---
@@ -139,7 +144,7 @@ def registrar_estado_scraper(portal, estado, mensaje="Funcionando correctamente"
 def orquestador():
     verificar_lic()
     logging.info("=== INICIANDO SISTEMA DE VIGILANCIA MULTI-PORTAL ===")
-    archivos_conocidos = obtener_archivos_conocidos()
+    memoria_general, memoria_oportunidades = obtener_archivos_conocidos()
     analizador = AnalizadorLicitaciones()
     
     scrapers = [
@@ -177,10 +182,10 @@ def orquestador():
 
             link_drive = next((l for l in enlaces if "drive.google.com" in l), None)
             if link_drive:
-                if titulo_web not in archivos_conocidos:
+                if titulo_web not in memoria_general:
                     print(f"🚨 ¡ALERTA MANUAL! {nombre_portal} usa una carpeta de Drive. Enviando aviso al equipo...")
                     enviar_notificacion(titulo_web, 0, nombre_portal, link_drive)
-                    archivos_conocidos.add(titulo_web)
+                    memoria_general.add(titulo_web)
                     
                     
                     df_drive = pd.DataFrame([{
@@ -233,7 +238,7 @@ def orquestador():
                 nombre_ganador = analizador.seleccionar_plan_mas_reciente(nombres_planes)
                 url_ganador = next(p[1] for p in planes_detectados if p[0] == nombre_ganador)
                 
-                if nombre_ganador in archivos_conocidos:
+                if nombre_ganador in memoria_general:
                     print(f"✅ El documento ({nombre_ganador}) de {nombre_portal} ya está inyectado. Todo al día.")
                 else:
                     print(f"🎯 DOCUMENTO OBJETIVO INÉDITO EN {nombre_portal}: {nombre_ganador}")
@@ -307,7 +312,7 @@ def orquestador():
 
                         cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
                         cliente.inyectar_datos(df_vencida)
-                        archivos_conocidos.add(nombre_ganador)
+                        memoria_general.add(nombre_ganador)
                         
                     else:
                         # ==========================================
@@ -318,8 +323,21 @@ def orquestador():
                         if ruta:
                             hallazgos = lector.analizar_excel(ruta, analizador.keywords_negocio)
                             if hallazgos:
-                                print(f"\n🚨 ¡ALERTA! Se encontraron {len(hallazgos)} oportunidades vigentes. Preparando inyección...")
-                                df = pd.DataFrame(hallazgos)
+                                # --- FILTRO ANTI-DUPLICADOS ---
+                                oportunidades_nuevas = []
+                                url_base_doc = url_ganador.split('?')[0]
+                                nombre_base_doc = unquote(url_base_doc.split('/')[-1].strip())
+                                
+                                for hallazgo in hallazgos:
+                                    huella_hallazgo = f"{nombre_base_doc}|{hallazgo['curso']}|{hallazgo['region']}|{hallazgo['comuna']}"
+                                    if huella_hallazgo not in memoria_oportunidades:
+                                        oportunidades_nuevas.append(hallazgo)
+                                
+                                if not oportunidades_nuevas:
+                                    print(f"\n✅ Se encontraron {len(hallazgos)} cursos, pero todos ya estaban registrados. Todo al día.")
+                                else:
+                                    print(f"\n🚨 ¡ALERTA! Se encontraron {len(oportunidades_nuevas)} oportunidades NUEVAS. Preparando inyección...")
+                                    df = pd.DataFrame(oportunidades_nuevas)
                                 df['link_documento'] = url_ganador.split('?')[0]
                                 df['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
                                 df['origen_web'] = nombre_portal
@@ -329,8 +347,8 @@ def orquestador():
                                 
                                 cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
                                 if cliente.inyectar_datos(df):
-                                    enviar_notificacion(titulo_web, len(hallazgos), nombre_portal)
-                                    archivos_conocidos.add(nombre_ganador)
+                                    enviar_notificacion(titulo_web, len(oportunidades_nuevas), nombre_portal)
+                                    memoria_general.add(nombre_ganador)
                             else:
                                 print(f"\nℹ️ El Excel de {nombre_portal} no contiene cursos clave.")
             else:

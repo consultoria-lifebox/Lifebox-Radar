@@ -28,7 +28,7 @@ class CorficapScraperSelenium:
         options.add_argument("--headless=new")           # Modo invisible
         
         driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-        driver.set_page_load_timeout(45)
+        driver.set_page_load_timeout(60) # Aumentado a 60s por inestabilidad del sitio
         return driver
 
     def fetch_tender_links(self):
