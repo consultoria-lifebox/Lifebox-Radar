@@ -38,12 +38,12 @@ class AsimetScraperSelenium:
         try:
             self.driver.get(self.url)
             wait = WebDriverWait(self.driver, 20)
-            
+
             logging.info("Esperando y extrayendo todos los documentos descargables de la página...")
-            
+
             # Usamos Selenium directamente para mayor fiabilidad
             xpath_docs = "//a[contains(@href, '.pdf') or contains(@href, '.docx') or contains(@href, '.doc') or contains(@href, '.xlsx') or contains(@href, '.xls') or contains(@href, '.zip')]"
-            
+
             enlaces_elementos = wait.until(EC.presence_of_all_elements_located((By.XPATH, xpath_docs)))
             
             for enlace in enlaces_elementos:
@@ -53,7 +53,8 @@ class AsimetScraperSelenium:
                     enlaces_encontrados.add(url_completa)
 
             if not enlaces_encontrados:
-                raise Exception("Cambio de diseño: No se encontraron links de documentos en la página de ASIMET.")
+                # Si no hay enlaces, no es un error crítico, solo no hay datos.
+                logging.info("No se encontraron documentos de licitación vigentes en ASIMET.")
 
             logging.info(f"Éxito: Se recolectaron {len(enlaces_encontrados)} documentos desde ASIMET.")
             return enlaces_encontrados, titulo_proceso_encontrado

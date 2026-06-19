@@ -96,8 +96,8 @@ class IndupanScraperSelenium:
                             enlaces_encontrados.add(url_completa)
                             hubo_exito = True
 
-            if not enlaces_encontrados:
-                # Si no se encuentra nada, no es un error, simplemente no hay datos nuevos.
+            # Si, después de todos los intentos, no hay nada, se informa y continúa.
+            if not hubo_exito:
                 logging.info("No se detectaron enlaces de licitaciones ni documentos vigentes en la OTIC de INDUPAN.")
 
             return enlaces_encontrados, titulo_proceso_encontrado

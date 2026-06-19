@@ -3,6 +3,8 @@ import time
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
@@ -43,7 +45,10 @@ class CorficapScraperSelenium:
         
         try:
             self.driver.get(self.url)
-            time.sleep(5) # Espera técnica para renderizado de tarjetas de noticias
+            # Espera inteligente a que aparezcan las tarjetas de noticias
+            WebDriverWait(self.driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "article.post"))
+            )
 
             html_principal = self.driver.page_source
             soup_principal = BeautifulSoup(html_principal, 'html.parser')
