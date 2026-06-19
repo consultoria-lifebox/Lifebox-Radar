@@ -111,17 +111,14 @@ class CorficapScraperSelenium:
 
         # Manejo de excepciones unificado para la tubería de automatización
         except TimeoutException:
-            logging.error("Timeout en CORFICAP")
+            logging.error("Timeout en CORFICAP. El servidor no respondió.")
             raise Exception("El servidor de CORFICAP no respondió a tiempo (Timeout).")
-        except WebDriverException:
-            logging.error("Error de WebDriver en CORFICAP")
-            raise Exception("Ocurrió un problema con el navegador automatizado al acceder a CORFICAP.")
+        except WebDriverException as e:
+            logging.error(f"Error de WebDriver en CORFICAP: {e.msg}")
+            raise Exception(f"Ocurrió un problema con el navegador automatizado en CORFICAP: {e.msg}")
         except Exception as e:
             logging.error(f"Fallo crítico en CORFICAP: {e}")
-            if "Cambio de diseño" in str(e):
-                raise e
-            else:
-                raise Exception("Error inesperado en el módulo de CORFICAP. Revise la consola.")
+            raise Exception(f"Error inesperado en el módulo de CORFICAP: {e}")
 
         finally:
             logging.info("Cerrando sesión del navegador de CORFICAP.")

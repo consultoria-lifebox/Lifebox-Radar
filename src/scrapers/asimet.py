@@ -61,13 +61,13 @@ class AsimetScraperSelenium:
 
         except TimeoutException:
             logging.error("Timeout en ASIMET")
-            raise Exception("El sitio de la OTIC ASIMET tardó demasiado en cargar (Timeout).")
-        except WebDriverException:
-            logging.error("Error de WebDriver en ASIMET")
-            raise Exception("Fallo en la automatización del navegador al intentar abrir ASIMET.")
+            raise Exception("El sitio de la OTIC ASIMET tardó demasiado en cargar (Timeout). Revisa la conexión o la URL.")
+        except WebDriverException as e:
+            logging.error(f"Error de WebDriver en ASIMET: {e.msg}")
+            raise Exception(f"Fallo en el navegador al abrir ASIMET: {e.msg}")
         except Exception as e:
             logging.error(f"Error crítico en el scraper de ASIMET: {e}")
-            raise e
+            raise Exception(f"Error inesperado en ASIMET: {e}")
 
         finally:
             logging.info("Cerrando la instancia del navegador de ASIMET.")
