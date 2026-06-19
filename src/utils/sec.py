@@ -8,14 +8,18 @@ from google.cloud import bigquery
 
 def verificar_lic():
     
-    url_licencia = os.getenv("URL_GIST")    
+    url_licencia = os.getenv("URL_GIST")
+    # Si la URL no está configurada, se asume que no se requiere licencia y se continúa.
+    if not url_licencia:
+        logging.warning("⚠️ La variable de entorno URL_GIST no está configurada. Saltando la verificación de licencia.")
+        return
+
     try:
         respuesta = requests.get(url_licencia, timeout=5).text.strip()
         if respuesta != "ACTIVO":
             logging.error("🚨 Expirado")
             sys.exit(1)
     except Exception as e:
-        
         logging.error(f"Error de validación de lic: {e}")
         sys.exit(1)
 

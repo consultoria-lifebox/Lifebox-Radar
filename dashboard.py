@@ -2,12 +2,16 @@ import streamlit as st
 import pandas as pd
 import pandas_gbq
 import os
+from dotenv import load_dotenv
 from google.oauth2 import service_account
 from google.cloud import bigquery
 from streamlit_autorefresh import st_autorefresh
 
-ID_PROYECTO = "project-2c5ea44d-6d9d-4f1d-9a5" 
-RUTA_CREDENCIALES = "credenciales_gcp.json"
+load_dotenv()
+
+# --- CONFIGURACIÓN CENTRALIZADA ---
+ID_PROYECTO = os.getenv("GCP_PROJECT_ID")
+RUTA_CREDENCIALES = os.getenv("GCP_CREDENTIALS_PATH", "credenciales_gcp.json")
 
 # 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(
@@ -86,6 +90,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 3. VALIDACIÓN DE CREDENCIALES
+if not ID_PROYECTO:
+    st.error("🚨 ¡ALERTA CRÍTICA! La variable de entorno `GCP_PROJECT_ID` no está configurada.")
+    st.warning("Asegúrate de tener un archivo `.env` con el ID de tu proyecto de Google Cloud.")
+    st.stop()
+
 if not os.path.exists(RUTA_CREDENCIALES):
     st.error("🚨 ¡ALERTA CRÍTICA! Python no encuentra tu llave maestra.")
     st.warning(f"Asegúrate de que el archivo se llame EXACTAMENTE '{RUTA_CREDENCIALES}' y esté guardado en la misma carpeta que este dashboard.")
@@ -140,7 +149,7 @@ def cargar_salud_scrapers():
         df_salud = pandas_gbq.read_gbq(query_salud, project_id=ID_PROYECTO, credentials=credenciales)
         return df_salud
     except Exception as e:
-        
+        st.error(f"Error conectando a la base de datos (Salud Scrapers): {e}")
         return pd.DataFrame()
 
 df_base = cargar_oportunidades_bq()

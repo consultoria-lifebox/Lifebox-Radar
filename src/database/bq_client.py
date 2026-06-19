@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import pandas_gbq
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -28,12 +29,12 @@ class BigQueryClient:
         try:
             logging.info(f"Conectando a Google Cloud... Subiendo {len(df)} filas a {self.destination_table}")
             
-            #Inyectar a bigquery
-            
-            df.to_gbq(
+            # Inyectar a bigquery usando la librería correcta
+            pandas_gbq.to_gbq(
+                df,
                 destination_table=self.destination_table,
                 project_id=self.project_id,
-                if_exists='append' 
+                if_exists='append'
             )
             
             logging.info("✅ ¡Inyección exitosa! Los datos ya están en la nube.")

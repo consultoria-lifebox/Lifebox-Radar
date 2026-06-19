@@ -1,7 +1,9 @@
 import os
 import logging
 import requests
+from dotenv import load_dotenv
 import pandas as pd
+import pandas_gbq
 from urllib.parse import unquote
 from google.oauth2 import service_account
 
@@ -27,15 +29,23 @@ from src.utils.analizador_inteligente import AnalizadorLicitaciones
 from src.utils.document_parser import DocumentAnalyzer
 from src.database.bq_client import BigQueryClient
 
+load_dotenv()
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# --- CONFIGURACIÓN CENTRALIZADA ---
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
+GCP_CREDENTIALS_PATH = os.getenv("GCP_CREDENTIALS_PATH", "credenciales_gcp.json")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 def obtener_archivos_conocidos():
     logging.info("🧠 Consultando memoria en BigQuery...")
     try:
-        credenciales = service_account.Credentials.from_service_account_file("credenciales_gcp.json")
+        credenciales = service_account.Credentials.from_service_account_file(GCP_CREDENTIALS_PATH)
         
-        query = "SELECT DISTINCT link_documento, titulo_llamado_web FROM `project-2c5ea44d-6d9d-4f1d-9a5.licitaciones.oportunidades`"
-        df_historial = pd.read_gbq(query, project_id="project-2c5ea44d-6d9d-4f1d-9a5", credentials=credenciales)
+        query = f"SELECT DISTINCT link_documento, titulo_llamado_web FROM `{GCP_PROJECT_ID}.licitaciones.oportunidades`"
+        df_historial = pd.read_gbq(query, project_id=GCP_PROJECT_ID, credentials=credenciales)
         
         archivos_en_bq = set()
         for _, fila in df_historial.iterrows():
@@ -54,11 +64,7 @@ def obtener_archivos_conocidos():
         return set()
 
 def enviar_notificacion(titulo, cantidad, portal, link_especial=None):
-    # --- CONFIGURACIÓN TELEGRAM ---
-    TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-    CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-    
-    if not TELEGRAM_TOKEN or not CHAT_ID:
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         logging.error("⚠️ Faltan las credenciales de Telegram en las variables de entorno.")
         return
 
@@ -71,7 +77,7 @@ def enviar_notificacion(titulo, cantidad, portal, link_especial=None):
     
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
-        "chat_id": CHAT_ID,
+        "chat_id": TELEGRAM_CHAT_ID,
         "text": contenido,
         "parse_mode": "HTML"  
     }
@@ -87,10 +93,7 @@ def enviar_notificacion(titulo, cantidad, portal, link_especial=None):
 
 def enviar_alerta_error(portal, mensaje_error):
     """Envía un mensaje de emergencia a Telegram cuando un scraper falla"""
-    TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-    CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-    
-    if not TELEGRAM_TOKEN or not CHAT_ID: return
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
 
     # error corto paara no colapsar telegram
     error_corto = str(mensaje_error)[:200]
@@ -103,7 +106,7 @@ def enviar_alerta_error(portal, mensaje_error):
     )
     
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": contenido, "parse_mode": "Markdown"}
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": contenido, "parse_mode": "Markdown"}
     
     try:
         requests.post(url, json=payload)
@@ -112,8 +115,6 @@ def enviar_alerta_error(portal, mensaje_error):
 
 def registrar_estado_scraper(portal, estado, mensaje="Funcionando correctamente"):
     """Guarda el estado de salud de cada scraper en BigQuery"""
-    proyecto_id = "project-2c5ea44d-6d9d-4f1d-9a5"
-    
     df_estado = pd.DataFrame([{
         "fecha_ejecucion": pd.Timestamp.now('America/Santiago'),
         "portal": portal,
@@ -123,13 +124,12 @@ def registrar_estado_scraper(portal, estado, mensaje="Funcionando correctamente"
     
     try:
         
-        from google.oauth2 import service_account
-        credenciales_gcp = service_account.Credentials.from_service_account_file("credenciales_gcp.json")
+        credenciales_gcp = service_account.Credentials.from_service_account_file(GCP_CREDENTIALS_PATH)
         
-        pd.io.gbq.to_gbq(
+        pandas_gbq.to_gbq(
             df_estado,
             destination_table='licitaciones.estado_scrapers',
-            project_id=proyecto_id,
+            project_id=GCP_PROJECT_ID,
             if_exists='append',
             credentials=credenciales_gcp
         )
@@ -194,7 +194,7 @@ def orquestador():
                     df_drive['fecha_cierre'] = "Drive Manual"
                     df_drive['estado'] = "Revisión Manual"
 
-                    cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                    cliente = BigQueryClient(GCP_PROJECT_ID, "licitaciones", "oportunidades", GCP_CREDENTIALS_PATH)
                     cliente.inyectar_datos(df_drive)
                     
                     
@@ -305,7 +305,7 @@ def orquestador():
                         df_vencida['fecha_cierre'] = fecha_cierre
                         df_vencida['estado'] = "Vencido"
 
-                        cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                        cliente = BigQueryClient(GCP_PROJECT_ID, "licitaciones", "oportunidades", GCP_CREDENTIALS_PATH)
                         cliente.inyectar_datos(df_vencida)
                         archivos_conocidos.add(nombre_ganador)
                         
@@ -327,7 +327,7 @@ def orquestador():
                                 df['fecha_cierre'] = fecha_cierre      
                                 df['estado'] = estado_licitacion       
                                 
-                                cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                                cliente = BigQueryClient(GCP_PROJECT_ID, "licitaciones", "oportunidades", GCP_CREDENTIALS_PATH)
                                 if cliente.inyectar_datos(df):
                                     enviar_notificacion(titulo_web, len(hallazgos), nombre_portal)
                                     archivos_conocidos.add(nombre_ganador)
