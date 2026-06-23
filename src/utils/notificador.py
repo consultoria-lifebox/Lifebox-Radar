@@ -83,7 +83,7 @@ class Notificador:
 
     def _enviar_correo(self, asunto, cuerpo_html):
         # --- AQUÍ DEFINES TODOS LOS DESTINATARIOS ---
-        destinatarios = ["bmontesc@udd.cl", "danimunozp@udd.cl"]
+        destinatarios = ["belen.montes.ch@gmail.com", "danimunozp@udd.cl"]
 
         if not all([self.email_sender, self.email_password]):
             logging.warning("Credenciales de correo incompletas en GitHub. Saltando notificación.")
