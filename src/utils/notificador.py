@@ -49,11 +49,26 @@ class Notificador:
         error_corto = str(mensaje_error)[:200]
         contenido_telegram = (
             f"🚨 *¡ALERTA CRÍTICA DE SCRAPER!* 🚨\n\n"
-            f"🛑 *Portal Caído:* {portal}\n"
+            f"🔴 *Portal Caído:* {portal}\n"
             f"⚠️ *Motivo:* `{error_corto}...`\n\n"
-            f"🛠️ _Revisa el código, es posible que la página haya cambiado su diseño._"
+            f"🔍 _Revisa el código, es posible que la página haya cambiado su diseño._"
         )
         self._enviar_telegram(contenido_telegram, parse_mode="Markdown")
+
+        # --- ALERTA TEMPORAL POR CORREO PARA PRUEBAS ---
+        asunto_error = f"❌ ALERTA CRÍTICA: Falló Scraper en {portal.upper()}"
+        cuerpo_error_html = f"""
+        <html><body style="font-family: sans-serif;">
+            <h2 style="color: #d9534f;">🚨 Falla Crítica de Scraper</h2>
+            <p>El bot detectó un problema técnico al patrullar un portal.</p>
+            <hr>
+            <p><b>Portal afectado:</b> {portal.upper()}</p>
+            <p><b>Detalle del Error:</b> {error_corto}...</p>
+            <hr>
+            <p><small>Este correo de diagnóstico es temporal para verificación del sistema.</small></p>
+        </body></html>
+        """
+        self._enviar_correo(asunto_error, cuerpo_error_html)
 
     def _enviar_telegram(self, contenido, parse_mode="HTML"):
         if not all([self.telegram_token, self.telegram_chat_id]):
