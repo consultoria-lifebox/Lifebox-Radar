@@ -100,7 +100,7 @@ class Notificador:
             with smtplib.SMTP('smtp.gmail.com', 587) as server:
                 server.starttls()
                 server.login(self.email_sender, self.email_password)
-                server.send_message(msg)
+                server.send_message(msg, to_addrs=destinatarios)
                 logging.info(f"✅ Notificación por correo enviada a {len(destinatarios)} destinatarios.")
         except Exception as e:
             logging.error(f"❌ Falló el envío de correo: {e}")
