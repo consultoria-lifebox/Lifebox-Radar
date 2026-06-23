@@ -83,24 +83,28 @@ class Notificador:
 
     def _enviar_correo(self, asunto, cuerpo_html):
         # --- AQUÍ DEFINES TODOS LOS DESTINATARIOS ---
-        destinatarios = ["bmontesc@udd.cl","danimunozp@udd.cl"]
+        destinatarios = ["bmontesc@udd.cl", "danimunozp@udd.cl"]
 
         if not all([self.email_sender, self.email_password]):
             logging.warning("Credenciales de correo incompletas en GitHub. Saltando notificación.")
             return
 
         try:
-            msg = MIMEMultipart()
-            msg['From'] = self.email_sender
-            msg['To'] = ", ".join(destinatarios)
-            msg['Subject'] = asunto
-            msg.attach(MIMEText(cuerpo_html, 'html'))
-
             # Conexión directa y fija a Gmail
             with smtplib.SMTP('smtp.gmail.com', 587) as server:
                 server.starttls()
                 server.login(self.email_sender, self.email_password)
-                server.send_message(msg, to_addrs=destinatarios)
-                logging.info(f"✅ Notificación por correo enviada a {len(destinatarios)} destinatarios.")
+                
+                # --- EL SECRETO: ENVIAR UNO POR UNO ---
+                for destinatario in destinatarios:
+                    msg = MIMEMultipart()
+                    msg['From'] = self.email_sender
+                    msg['To'] = destinatario # El correo va solo a nombre de esta persona
+                    msg['Subject'] = asunto
+                    msg.attach(MIMEText(cuerpo_html, 'html'))
+                    
+                    server.send_message(msg)
+                    
+                logging.info(f"✅ Notificaciones individuales enviadas a {len(destinatarios)} destinatarios.")
         except Exception as e:
             logging.error(f"❌ Falló el envío de correo: {e}")
