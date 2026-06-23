@@ -116,6 +116,9 @@ def cargar_oportunidades_bq():
         
         if not df.empty:
             df.columns = ['Detectado el', 'Llamado', 'OTIC', 'Gatillo', 'Curso', 'Región', 'Comuna', 'Modalidad', 'Alumnos', 'Horas', 'Link Excel']
+            # --- FILTRO ANTI-DUPLICADOS VISUAL ---
+            # Se queda con el registro más reciente (keep='first') gracias al ORDER BY DESC de SQL
+            df = df.drop_duplicates(subset=['Llamado', 'OTIC', 'Curso', 'Región', 'Comuna'], keep='first')
             df['Detectado el'] = pd.to_datetime(df['Detectado el']).dt.strftime('%d-%m-%Y %H:%M')
             for col in ['OTIC', 'Región', 'Comuna', 'Gatillo']:
                 df[col] = df[col].fillna('No especificado').astype(str)
