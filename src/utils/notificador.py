@@ -15,11 +15,8 @@ class Notificador:
         self.telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
         # Credenciales de Correo
-        self.smtp_server = os.getenv("SMTP_SERVER")
-        self.smtp_port = os.getenv("SMTP_PORT")
         self.email_sender = os.getenv("EMAIL_SENDER")
         self.email_password = os.getenv("EMAIL_PASSWORD")
-        self.email_receiver = os.getenv("consultorialifebox@gmail.com")
 
     def notificar_exito(self, titulo, cantidad, portal, link_especial=None):
         """Envía notificaciones de éxito (nuevas licitaciones encontradas)."""
@@ -70,17 +67,25 @@ class Notificador:
             logging.error(f"Error enviando a Telegram: {e}")
 
     def _enviar_correo(self, asunto, cuerpo_html):
-        if not all([self.smtp_server, self.smtp_port, self.email_sender, self.email_password, self.email_receiver]):
-            logging.warning("Credenciales de correo incompletas. Saltando notificación por email.")
+        # --- AQUÍ DEFINES TODOS LOS DESTINATARIOS ---
+        destinatarios = ["bmontesc@udd.cl","danimunozp@udd.cl"]
+
+        if not all([self.email_sender, self.email_password]):
+            logging.warning("Credenciales de correo incompletas en GitHub. Saltando notificación.")
             return
+
         try:
             msg = MIMEMultipart()
-            msg['From'], msg['To'], msg['Subject'] = self.email_sender, self.email_receiver, asunto
+            msg['From'] = self.email_sender
+            msg['To'] = ", ".join(destinatarios)
+            msg['Subject'] = asunto
             msg.attach(MIMEText(cuerpo_html, 'html'))
-            with smtplib.SMTP(self.smtp_server, int(self.smtp_port)) as server:
+
+            # Conexión directa y fija a Gmail
+            with smtplib.SMTP('smtp.gmail.com', 587) as server:
                 server.starttls()
                 server.login(self.email_sender, self.email_password)
                 server.send_message(msg)
-                logging.info(f"✅ Notificación por correo enviada a {self.email_receiver}.")
+                logging.info(f"✅ Notificación por correo enviada a {len(destinatarios)} destinatarios.")
         except Exception as e:
             logging.error(f"❌ Falló el envío de correo: {e}")
