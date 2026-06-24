@@ -246,7 +246,14 @@ with tab_principal:
                 st.warning(f"Estás a punto de ocultar {len(filas_a_descartar)} documentos.")
                 if st.button("⚠️ Confirmar y Ocultar Selección", type="primary"):
                     cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
-                    condiciones = [f"(link_documento = '{str(f['Link Excel']).replace(chr(39), chr(92)+chr(39))}' AND curso = '{str(f['Curso']).replace(chr(39), chr(92)+chr(39))}')" for _, f in filas_a_descartar.iterrows()]
+                    # Filtro de alta precisión para descartar
+                    condiciones = [
+                        f"(link_documento = '{str(f['Link Excel']).replace(chr(39), chr(92)+chr(39))}' "
+                        f"AND curso = '{str(f['Curso']).replace(chr(39), chr(92)+chr(39))}' "
+                        f"AND comuna = '{str(f['Comuna']).replace(chr(39), chr(92)+chr(39))}' "
+                        f"AND cupos = {int(f['Alumnos_Num'])})"
+                        for _, f in filas_a_descartar.iterrows()
+                    ]
                     query_update = f"UPDATE `{ID_PROYECTO}.licitaciones.oportunidades` SET estado = 'Descartado' WHERE {' OR '.join(condiciones)}"
                     
                     with st.spinner("Enviando a la lista negra..."):
@@ -259,9 +266,9 @@ with tab_principal:
     if st.toggle("🗑️ Abrir Papelera de Reciclaje"):
         st.markdown("#### Documentos Descartados")
         try:
-            df_papelera = pandas_gbq.read_gbq(f"SELECT fecha_deteccion, titulo_llamado_web, origen_web, curso, region, comuna, link_documento FROM `{ID_PROYECTO}.licitaciones.oportunidades` WHERE estado = 'Descartado' ORDER BY fecha_deteccion DESC", project_id=ID_PROYECTO, credentials=credenciales)
+            df_papelera = pandas_gbq.read_gbq(f"SELECT fecha_deteccion, titulo_llamado_web, origen_web, curso, region, comuna, cupos, link_documento FROM `{ID_PROYECTO}.licitaciones.oportunidades` WHERE estado = 'Descartado' ORDER BY fecha_deteccion DESC", project_id=ID_PROYECTO, credentials=credenciales)
             # --- FILTRO ANTI-DUPLICADOS PARA PAPELERA ---
-            df_papelera = df_papelera.drop_duplicates(subset=['titulo_llamado_web', 'curso', 'region', 'comuna'])
+            df_papelera = df_papelera.drop_duplicates(subset=['titulo_llamado_web', 'curso', 'region', 'comuna', 'cupos'])
             if df_papelera.empty:
                 st.info("La papelera está vacía.")
             else:
@@ -271,7 +278,13 @@ with tab_principal:
                 
                 if not filas_restaurar.empty and st.button("✨ Confirmar Restauración", type="primary"):
                     cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
-                    condiciones = [f"(link_documento = '{str(f['link_documento']).replace(chr(39), chr(92)+chr(39))}' AND curso = '{str(f['curso']).replace(chr(39), chr(92)+chr(39))}')" for _, f in filas_restaurar.iterrows()]
+                    condiciones = [
+                            f"(link_documento = '{str(f['link_documento']).replace(chr(39), chr(92)+chr(39))}' "
+                            f"AND curso = '{str(f['curso']).replace(chr(39), chr(92)+chr(39))}' "
+                            f"AND comuna = '{str(f['comuna']).replace(chr(39), chr(92)+chr(39))}' "
+                            f"AND cupos = {int(f['cupos'])})"
+                            for _, f in filas_restaurar.iterrows()
+                    ]
                     query_revivir = f"UPDATE `{ID_PROYECTO}.licitaciones.oportunidades` SET estado = 'Activo' WHERE {' OR '.join(condiciones)}"
                     with st.spinner("Restaurando..."):
                         cliente_bq.query(query_revivir).result()
