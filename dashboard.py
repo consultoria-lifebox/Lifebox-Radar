@@ -248,11 +248,11 @@ with tab_principal:
                     cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
                     # Filtro de alta precisión para descartar
                     condiciones = [
-                        f"(link_documento = '{str(f['Link Excel']).replace(chr(39), chr(92)+chr(39))}' "
-                        f"AND curso = '{str(f['Curso']).replace(chr(39), chr(92)+chr(39))}' "
-                        f"AND comuna = '{str(f['Comuna']).replace(chr(39), chr(92)+chr(39))}' "
-                        f"AND cupos = {int(f['Alumnos_Num'])})"
-                        for _, f in filas_a_descartar.iterrows()
+                            f"(link_documento = '{str(f['Link Excel']).replace(chr(39), chr(92)+chr(39))}' "
+                            f"AND curso = '{str(f['Curso']).replace(chr(39), chr(92)+chr(39))}' "
+                            f"AND comuna = '{str(f['Comuna']).replace(chr(39), chr(92)+chr(39))}' "
+                            f"AND cupos = '{str(f['Alumnos']).replace(chr(39), chr(92)+chr(39))}')"
+                            for _, f in filas_a_descartar.iterrows()
                     ]
                     query_update = f"UPDATE `{ID_PROYECTO}.licitaciones.oportunidades` SET estado = 'Descartado' WHERE {' OR '.join(condiciones)}"
                     
@@ -282,7 +282,7 @@ with tab_principal:
                             f"(link_documento = '{str(f['link_documento']).replace(chr(39), chr(92)+chr(39))}' "
                             f"AND curso = '{str(f['curso']).replace(chr(39), chr(92)+chr(39))}' "
                             f"AND comuna = '{str(f['comuna']).replace(chr(39), chr(92)+chr(39))}' "
-                            f"AND cupos = {int(f['cupos'])})"
+                            f"AND cupos = '{str(f['cupos']).replace(chr(39), chr(92)+chr(39))}')"
                             for _, f in filas_restaurar.iterrows()
                     ]
                     query_revivir = f"UPDATE `{ID_PROYECTO}.licitaciones.oportunidades` SET estado = 'Activo' WHERE {' OR '.join(condiciones)}"
