@@ -260,6 +260,8 @@ with tab_principal:
         st.markdown("#### Documentos Descartados")
         try:
             df_papelera = pandas_gbq.read_gbq(f"SELECT fecha_deteccion, titulo_llamado_web, origen_web, curso, region, comuna, link_documento FROM `{ID_PROYECTO}.licitaciones.oportunidades` WHERE estado = 'Descartado' ORDER BY fecha_deteccion DESC", project_id=ID_PROYECTO, credentials=credenciales)
+            # --- FILTRO ANTI-DUPLICADOS PARA PAPELERA ---
+            df_papelera = df_papelera.drop_duplicates(subset=['titulo_llamado_web', 'curso', 'region', 'comuna'])
             if df_papelera.empty:
                 st.info("La papelera está vacía.")
             else:
