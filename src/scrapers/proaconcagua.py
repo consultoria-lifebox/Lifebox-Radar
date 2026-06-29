@@ -12,7 +12,7 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 
 class ProAconcaguaScraperSelenium:
     def __init__(self):
-        self.url = "https://www.oticproaconcagua.cl/becas-laborales/"
+        self.url = "https://oticproaconcagua.cl/"
         
         self.opciones = Options()
         self.opciones.page_load_strategy = 'eager'
