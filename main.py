@@ -203,20 +203,24 @@ def orquestador():
                 nombres_planes = [p[0] for p in planes_detectados]
                 nombre_ganador = analizador.seleccionar_plan_mas_reciente(nombres_planes)
                 url_ganador = next(p[1] for p in planes_detectados if p[0] == nombre_ganador)
-                
+
+                # Todo esto ahora está correctamente indentado DENTRO del if
                 # Revisamos si es un archivo nuevo o si lo vamos a re-escanear por actualizaciones
                 if nombre_ganador in memoria_general:
                     print(f"🔄 Re-escaneando documento conocido ({nombre_ganador}) en busca de nuevos cursos...")
                 else:
                     print(f"🎯 DOCUMENTO OBJETIVO INÉDITO EN {nombre_portal}: {nombre_ganador}")
                     memoria_general.add(nombre_ganador)
-                    
-                    # ==========================================
-                    # EXTRACCIÓN DE FECHA DESDE EL PDF
-                    # ==========================================
-                    fecha_cierre = "No especificada"
-                    estado_licitacion = "Activo"
-                    url_pdf_fecha = None
+
+                # AQUÍ REVIVE EL LECTOR (Listo para leer documentos nuevos y viejos)
+                lector = DocumentAnalyzer()
+
+                # ==================================================
+                # EXTRACCIÓN DE FECHA DESDE EL PDF
+                # ==================================================
+                fecha_cierre = "No especificada"
+                estado_licitacion = "Activo"
+                url_pdf_fecha = None
                     
                     # 1. Búsqued PRIORIDAD
                     for nombre_pdf, link_pdf in links_pdfs:
