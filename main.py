@@ -322,19 +322,23 @@ def orquestador():
                                 memoria_general.add(nombre_ganador)
                         else:
                             print(f"\nℹ️ El Excel de {nombre_portal} no contiene cursos clave.")
-        else:
-            print(f"\nℹ️ No se detectó ningún Plan de Capacitación (Excel) en {nombre_portal}.")
+                
+                else:
+                    print(f"\nℹ️ No se detectó ningún Plan de Capacitación (Excel) en {nombre_portal}.")
+                
+                registrar_estado_scraper(nombre_portal, "OK")
 
-        registrar_estado_scraper(nombre_portal, "OK")
+            # Este except atrapa errores graves de cualquier portal y pasa al siguiente
+            except Exception as e:
+                logging.error(f"❌ Falla crítica ejecutando {nombre_portal}: {e}")
+                notificador.notificar_error(nombre_portal, e)
+                registrar_estado_scraper(nombre_portal, "ERROR", e)
+                continue # pasa al siguiente portal
 
-    except Exception as e:
-            
-        logging.error(f"❌ Falla crítica ejecutando {nombre_portal}: {e}")
-        notificador.notificar_error(nombre_portal, e)
-        registrar_estado_scraper(nombre_portal, "ERROR", e)
-        continue # pasa al siguiente portal-
+        # Fuera del ciclo for de portales, terminamos el patrullaje
+        logging.info("=== PATRULLAJE FINALIZADO EN TODOS LOS PORTALES ===")
 
-    logging.info("=== PATRULLAJE FINALIZADO EN TODOS LOS PORTALES ===")
 
+# El punto de arranque del programa (Pegado al borde izquierdo, 0 espacios)
 if __name__ == "__main__":
     orquestador()
