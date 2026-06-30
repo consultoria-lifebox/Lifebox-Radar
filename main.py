@@ -141,10 +141,16 @@ def orquestador():
 
             link_drive = next((l for l in enlaces if "drive.google.com" in l), None)
             if link_drive:
-                if titulo_web not in memoria_general:
+                # Consultar a BigQuery si ya notificamos este titulo
+                query_check = f"SELECT COUNT(*) as count FROM `project-2c5ea44d-6d9d-4f1d-9a5.licitaciones.oportunidades` WHERE titulo_llamado_web = '{titulo_web}'"
+                df_check = pd.read_gbq(query_check, project_id='project-2c5ea44d-6d9d-4f1d-9a5')
+            
+                if df_check.iloc[0]['count'] == 0:
                     print(f"🚨 ¡ALERTA MANUAL! {nombre_portal} usa una carpeta de Drive. Enviando aviso al equipo...")
                     notificador.notificar_exito(titulo_web, 0, nombre_portal, link_especial=link_drive)
                     memoria_general.add(titulo_web)
+                else:
+                    print(f"✅ Ya existe registro en BD para: {titulo_web}. Saltando notificación.")
                     
                     
                     df_drive = pd.DataFrame([{
@@ -197,11 +203,16 @@ def orquestador():
                 nombre_ganador = analizador.seleccionar_plan_mas_reciente(nombres_planes)
                 url_ganador = next(p[1] for p in planes_detectados if p[0] == nombre_ganador)
                 
-                if nombre_ganador in memoria_general:
-                    print(f"✅ El documento ({nombre_ganador}) de {nombre_portal} ya está inyectado. Todo al día.")
-                else:
+                # Consultar a BigQuery si ya notificamos este nombre
+                query_check_doc = f"SELECT COUNT(*) as count FROM `project-2c5ea44d-6d9d-4f1d-9a5.licitaciones.oportunidades` WHERE titulo_llamado_web = '{nombre_ganador}'"
+                df_check_doc = pd.read_gbq(query_check_doc, project_id='project-2c5ea44d-6d9d-4f1d-9a5')
+
+                if df_check_doc.iloc[0]['count'] == 0:
                     print(f"🎯 DOCUMENTO OBJETIVO INÉDITO EN {nombre_portal}: {nombre_ganador}")
-                    lector = DocumentAnalyzer()
+                else:
+                    print(f"✅ El documento ({nombre_ganador}) de {nombre_portal} ya está inyectado. Saltando notificación.")
+                    # Si ya existe, nos saltamos la lógica de análisis para no enviar correo
+                    continue
                     
                     # ==========================================
                     # EXTRACCIÓN DE FECHA DESDE EL PDF
