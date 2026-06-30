@@ -222,117 +222,117 @@ def orquestador():
                 estado_licitacion = "Activo"
                 url_pdf_fecha = None
                     
-                    # 1. Búsqued PRIORIDAD
+                # 1. Búsqued PRIORIDAD
+                for nombre_pdf, link_pdf in links_pdfs:
+                    nom_bajo = nombre_pdf.lower()
+                    if any(x in nom_bajo for x in ['cronograma', 'anexo 1', 'anexo-1', 'anexo1', 'anexo n°1', 'calendario']):
+                        url_pdf_fecha = link_pdf
+                        break
+                    
+                # 2. Búsqueda PRIORIDAD menor
+                if not url_pdf_fecha:
                     for nombre_pdf, link_pdf in links_pdfs:
                         nom_bajo = nombre_pdf.lower()
-                        if any(x in nom_bajo for x in ['cronograma', 'anexo 1', 'anexo-1', 'anexo1', 'anexo n°1', 'calendario']):
-                            url_pdf_fecha = link_pdf
-                            break
-                    
-                    # 2. Búsqueda PRIORIDAD menor
-                    if not url_pdf_fecha:
-                        for nombre_pdf, link_pdf in links_pdfs:
-                            nom_bajo = nombre_pdf.lower()
-                            if any(x in nom_bajo for x in ['base', 'anexo']):
-                                if not any(basura in nom_bajo for basura in ['modifica', 'r.e.', 'resolucion', 'ord', 'ordinario']):
-                                    url_pdf_fecha = link_pdf
-                                    break
+                        if any(x in nom_bajo for x in ['base', 'anexo']):
+                            if not any(basura in nom_bajo for basura in ['modifica', 'r.e.', 'resolucion', 'ord', 'ordinario']):
+                                url_pdf_fecha = link_pdf
+                                break
                     
                     
-                    if not url_pdf_fecha and links_pdfs:
+                if not url_pdf_fecha and links_pdfs:
                         url_pdf_fecha = links_pdfs[0][1]
                         
-                    if url_pdf_fecha:
-                        print(f"📄 Descargando PDF para extraer fecha: {unquote(url_pdf_fecha.split('/')[-1])}")
-                        ruta_pdf = lector.descargar_archivo(url_pdf_fecha)
-                        if ruta_pdf:
-                            fecha_cierre = lector.extraer_fecha_pdf(ruta_pdf)
-                            os.remove(ruta_pdf) 
+                if url_pdf_fecha:
+                    print(f"📄 Descargando PDF para extraer fecha: {unquote(url_pdf_fecha.split('/')[-1])}")
+                    ruta_pdf = lector.descargar_archivo(url_pdf_fecha)
+                    if ruta_pdf:
+                        fecha_cierre = lector.extraer_fecha_pdf(ruta_pdf)
+                        os.remove(ruta_pdf) 
                             
-                            if fecha_cierre != "No especificada":
-                                try:
-                                    fecha_limite_dt = pd.to_datetime(fecha_cierre, format='%Y-%m-%d')
-                                    fecha_hoy_dt = pd.Timestamp.now('America/Santiago').normalize().tz_localize(None)
+                        if fecha_cierre != "No especificada":
+                            try:
+                                fecha_limite_dt = pd.to_datetime(fecha_cierre, format='%Y-%m-%d')
+                                fecha_hoy_dt = pd.Timestamp.now('America/Santiago').normalize().tz_localize(None)
                                     
-                                    if fecha_limite_dt < fecha_hoy_dt:
-                                        estado_licitacion = "Vencido"
-                                        print(f"⚠️ LICITACIÓN EXPIRADA: La fecha de cierre ({fecha_cierre}) ya pasó.")
-                                    else:
-                                        print(f"✅ LICITACIÓN VIGENTE: Cierra el {fecha_cierre}.")
-                                except Exception as e:
-                                    logging.warning(f"No se pudo calcular el vencimiento para la fecha: {fecha_cierre}")
+                                if fecha_limite_dt < fecha_hoy_dt:
+                                    estado_licitacion = "Vencido"
+                                    print(f"⚠️ LICITACIÓN EXPIRADA: La fecha de cierre ({fecha_cierre}) ya pasó.")
+                                else:
+                                    print(f"✅ LICITACIÓN VIGENTE: Cierra el {fecha_cierre}.")
+                            except Exception as e:
+                                logging.warning(f"No se pudo calcular el vencimiento para la fecha: {fecha_cierre}")
                     
 
-                    # ==========================================
-                    # DECISIÓN: ¿LEo EL EXCEL?
-                    # ==========================================
-                    if estado_licitacion == "Vencido":
-                        print(f"⏭️ AHORRO DE TOKENS: La licitación está vencida. Se descarta la lectura de cursos del Excel de {nombre_portal}.")
+                # ==========================================
+                # DECISIÓN: ¿LEo EL EXCEL?
+                # ==========================================
+                if estado_licitacion == "Vencido":
+                    print(f"⏭️ AHORRO DE TOKENS: La licitación está vencida. Se descarta la lectura de cursos del Excel de {nombre_portal}.")
                         
-                        #Subo UNA sola fila "fantasma" a BigQuery para que el bot la recuerde mañana
-                        df_vencida = pd.DataFrame([{
-                            "palabra_clave": "N/A", "curso": "Licitación Vencida (Ignorada para ahorrar proceso)", 
-                            "region": "N/A", "comuna": "N/A", "cupos": "0", "horas": "0", "modalidad": "N/A", "fila": 0
-                        }])
-                        df_vencida['link_documento'] = url_ganador.split('?')[0]
-                        df_vencida['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
-                        df_vencida['origen_web'] = nombre_portal
-                        df_vencida['titulo_llamado_web'] = titulo_web
-                        df_vencida['fecha_cierre'] = fecha_cierre
-                        df_vencida['estado'] = "Vencido"
+                    #Subo UNA sola fila "fantasma" a BigQuery para que el bot la recuerde mañana
+                    df_vencida = pd.DataFrame([{
+                        "palabra_clave": "N/A", "curso": "Licitación Vencida (Ignorada para ahorrar proceso)", 
+                        "region": "N/A", "comuna": "N/A", "cupos": "0", "horas": "0", "modalidad": "N/A", "fila": 0
+                    }])
+                    df_vencida['link_documento'] = url_ganador.split('?')[0]
+                    df_vencida['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
+                    df_vencida['origen_web'] = nombre_portal
+                    df_vencida['titulo_llamado_web'] = titulo_web
+                    df_vencida['fecha_cierre'] = fecha_cierre
+                    df_vencida['estado'] = "Vencido"
 
-                        cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
-                        cliente.inyectar_datos(df_vencida)
-                        memoria_general.add(nombre_ganador)
+                    cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                    cliente.inyectar_datos(df_vencida)
+                    memoria_general.add(nombre_ganador)
                         
-                    else:
-                        # ==========================================
-                        # LA LICITACIÓN ESTÁ VIGENTE, APLICO LA IA AL EXCEL
-                        # ==========================================
-                        ruta = lector.descargar_archivo(url_ganador)
+                else:
+                    # ==========================================
+                    # LA LICITACIÓN ESTÁ VIGENTE, APLICO LA IA AL EXCEL
+                    # ==========================================
+                    ruta = lector.descargar_archivo(url_ganador)
                         
-                        if ruta:
-                            hallazgos = lector.analizar_excel(ruta, analizador.keywords_negocio)
-                            if hallazgos:
-                                # --- FILTRO ANTI-DUPLICADOS ---
-                                oportunidades_nuevas = []
-                                url_base_doc = url_ganador.split('?')[0]
-                                nombre_base_doc = unquote(url_base_doc.split('/')[-1].strip())
+                    if ruta:
+                        hallazgos = lector.analizar_excel(ruta, analizador.keywords_negocio)
+                        if hallazgos:
+                            # --- FILTRO ANTI-DUPLICADOS ---
+                            oportunidades_nuevas = []
+                            url_base_doc = url_ganador.split('?')[0]
+                            nombre_base_doc = unquote(url_base_doc.split('/')[-1].strip())
                                 
-                                for hallazgo in hallazgos:
-                                    huella_hallazgo = f"{nombre_base_doc}|{hallazgo['curso']}|{hallazgo['region']}|{hallazgo['comuna']}"
-                                    if huella_hallazgo not in memoria_oportunidades:
-                                        oportunidades_nuevas.append(hallazgo)
+                            for hallazgo in hallazgos:
+                                huella_hallazgo = f"{nombre_base_doc}|{hallazgo['curso']}|{hallazgo['region']}|{hallazgo['comuna']}"
+                                if huella_hallazgo not in memoria_oportunidades:
+                                    oportunidades_nuevas.append(hallazgo)
                                 
-                                if not oportunidades_nuevas:
-                                    print(f"\n✅ Se encontraron {len(hallazgos)} cursos, pero todos ya estaban registrados. Todo al día.")
-                                else:
-                                    print(f"\n🚨 ¡ALERTA! Se encontraron {len(oportunidades_nuevas)} oportunidades NUEVAS. Preparando inyección...")
-                                    df = pd.DataFrame(oportunidades_nuevas)
-                                df['link_documento'] = url_ganador.split('?')[0]
-                                df['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
-                                df['origen_web'] = nombre_portal
-                                df['titulo_llamado_web'] = titulo_web
-                                df['fecha_cierre'] = fecha_cierre      
-                                df['estado'] = estado_licitacion       
-                                
-                                cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
-                                if cliente.inyectar_datos(df):
-                                    notificador.notificar_exito(titulo_web, len(oportunidades_nuevas), nombre_portal)
-                                    memoria_general.add(nombre_ganador)
+                            if not oportunidades_nuevas:
+                                print(f"\n✅ Se encontraron {len(hallazgos)} cursos, pero todos ya estaban registrados. Todo al día.")
                             else:
-                                print(f"\nℹ️ El Excel de {nombre_portal} no contiene cursos clave.")
-            else:
-                print(f"\nℹ️ No se detectó ningún Plan de Capacitación (Excel) en {nombre_portal}.")
+                                print(f"\n🚨 ¡ALERTA! Se encontraron {len(oportunidades_nuevas)} oportunidades NUEVAS. Preparando inyección...")
+                                df = pd.DataFrame(oportunidades_nuevas)
+                            df['link_documento'] = url_ganador.split('?')[0]
+                            df['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
+                            df['origen_web'] = nombre_portal
+                            df['titulo_llamado_web'] = titulo_web
+                            df['fecha_cierre'] = fecha_cierre      
+                            df['estado'] = estado_licitacion       
+                                
+                            cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                            if cliente.inyectar_datos(df):
+                                notificador.notificar_exito(titulo_web, len(oportunidades_nuevas), nombre_portal)
+                                memoria_general.add(nombre_ganador)
+                        else:
+                            print(f"\nℹ️ El Excel de {nombre_portal} no contiene cursos clave.")
+        else:
+            print(f"\nℹ️ No se detectó ningún Plan de Capacitación (Excel) en {nombre_portal}.")
 
-            registrar_estado_scraper(nombre_portal, "OK")
+        registrar_estado_scraper(nombre_portal, "OK")
 
-        except Exception as e:
+    except Exception as e:
             
-            logging.error(f"❌ Falla crítica ejecutando {nombre_portal}: {e}")
-            notificador.notificar_error(nombre_portal, e)
-            registrar_estado_scraper(nombre_portal, "ERROR", e)
-            continue # pasa al siguiente portal-
+        logging.error(f"❌ Falla crítica ejecutando {nombre_portal}: {e}")
+        notificador.notificar_error(nombre_portal, e)
+        registrar_estado_scraper(nombre_portal, "ERROR", e)
+        continue # pasa al siguiente portal-
 
     logging.info("=== PATRULLAJE FINALIZADO EN TODOS LOS PORTALES ===")
 
