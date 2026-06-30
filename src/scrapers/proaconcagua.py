@@ -23,7 +23,6 @@ class ProAconcaguaScraperSelenium:
         self.opciones.add_argument("--window-size=1920,1080")
 
     def fetch_tender_links(self):
-        # 🎯 
         anio_actual = str(datetime.now().year)
         anio_anterior = str(datetime.now().year - 1)
         
@@ -33,51 +32,46 @@ class ProAconcaguaScraperSelenium:
         driver.set_page_load_timeout(30)
         enlaces = set()
         titulo_encontrado = f"Llamado Licitación Pro Aconcagua {anio_actual}"
-
+        
         try:
             driver.get(self.url)
+            time.sleep(5) 
             
-            # Esperar a que cargue el bloque principal
-            WebDriverWait(driver, 15).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "elementor-text-editor"))
-            )
-            time.sleep(2)
-
             anios_a_buscar = [anio_actual, anio_anterior]
 
-            for anio_objetivo in anios_a_buscar:
-                logging.info(f"Buscando el título para el año {anio_objetivo}...")
-                xpath_titulo = f"//h2[contains(., '{anio_objetivo}')]"
+            for anio in anios_a_buscar:
+                logging.info(f"Buscando el título para el año {anio}...")
+                
+                # Busca el elemento exacto que contenga el texto, sin importar si es un div, span, p, o h2
+                xpath_titulo = f"//*[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'becas') and contains(., '{anio}') and not(*[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'becas') and contains(., '{anio}')])]"
                 titulos = driver.find_elements(By.XPATH, xpath_titulo)
-
+                
                 if titulos:
                     titulo_elemento = titulos[0]
                     texto_titulo = titulo_elemento.text.strip()
                     titulo_encontrado = f"Pro Aconcagua - {texto_titulo}"
                     logging.info(f"¡Título detectado!: '{texto_titulo}'")
-
-                    # Busco el botón de descarga o link al Drive que esté justo después del título
-                    xpath_boton = "./following::a[contains(@class, 'elementor-button-link')][1]"
+                    
+                    xpath_boton = "./following::a[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'descargar')][1]"
+                    
                     try:
                         boton = titulo_elemento.find_element(By.XPATH, xpath_boton)
                         href = boton.get_attribute("href")
                         if href:
                             enlaces.add(href)
                             logging.info(f"Link a la carpeta capturado: {href}")
-                            break # 🎯 Rompemos el ciclo porque encontramos el año 
+                            break 
                     except Exception:
                         logging.warning("Se encontró el título pero no el botón de descarga.")
                 else:
-                    logging.info(f"No se encontró el título para el año {anio_objetivo}.")
+                    logging.info(f"No se encontró el título para el año {anio}.")
 
-        
             if not enlaces:
                 raise Exception("Cambio de diseño: No se encontró el título o el botón de descarga en Pro Aconcagua.")
 
-        #bloque errores
         except TimeoutException:
             logging.error("Timeout en Pro Aconcagua")
-            raise Exception("La página web de Pro Aconcagua está caída o demasiado lenta (Timeout).")
+            raise Exception("La página web de Pro Aconcagua está caída o cambió su diseño (Timeout).")
         except WebDriverException:
             logging.error("Error de WebDriver en Pro Aconcagua")
             raise Exception("No se pudo acceder a la página de Pro Aconcagua. Revisa la URL.")
@@ -89,7 +83,7 @@ class ProAconcaguaScraperSelenium:
                 raise Exception("Error inesperado en Pro Aconcagua. Revisa los logs de la consola.")
         finally:
             driver.quit()
-
+            
         return enlaces, titulo_encontrado
 
 # Prueba local
