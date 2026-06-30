@@ -142,38 +142,38 @@ def orquestador():
             link_drive = next((l for l in enlaces if "drive.google.com" in l), None)
             
             if link_drive:
-            # Limpiamos el título para asegurarnos de que no sean puros espacios
-            titulo_limpio = titulo_web.strip() if titulo_web else ""
-            
-            # 1. FILTRO ANTI-SPAM ABSOLUTO: Si el título viene vacío, el scraper falló. Lo ignoramos.
-            if not titulo_limpio:
-                logging.warning(f"Link de Drive detectado en {nombre_portal}, pero el título está vacío. Se ignora para evitar spam.")
-            else:
-                # 2. Usamos tu 'memoria_general' (que ya tiene el historial de la BD)
-                if titulo_limpio not in memoria_general:
-                    print(f"🚨 ¡ALERTA MANUAL! {nombre_portal} usa una carpeta de Drive. Enviando aviso...")
-                    notificador.notificar_exito(titulo_limpio, 0, nombre_portal, link_especial=link_drive)
-                    memoria_general.add(titulo_limpio)
-                    
-                    # 3. Solo inyectamos si realmente es un título nuevo
-                    df_drive = pd.DataFrame([{
-                        "palabra_clave": "N/A", "curso": "Carpeta de Drive (Aviso ya enviado)",
-                        "region": "N/A", "comuna": "N/A", "cupos": "0", "horas": "0", "modalidad": "N/A", "fila": 0
-                    }])
-                    df_drive['link_documento'] = link_drive
-                    df_drive['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
-                    df_drive['origen_web'] = nombre_portal
-                    df_drive['titulo_llamado_web'] = titulo_limpio
-                    df_drive['fecha_cierre'] = "Drive Manual"
-                    df_drive['estado'] = "Revisión Manual"
-
-                    cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
-                    cliente.inyectar_datos(df_drive)
+                # Limpiamos el título para asegurarnos de que no sean puros espacios
+                titulo_limpio = titulo_web.strip() if titulo_web else ""
+                
+                # 1. FILTRO ANTI-SPAM ABSOLUTO: Si el título viene vacío, el scraper falló. Lo ignoramos.
+                if not titulo_limpio:
+                    logging.warning(f"Link de Drive detectado en {nombre_portal}, pero el título está vacío. Se ignora para evitar spam.")
                 else:
-                    print(f"✅ La carpeta de Drive ({titulo_limpio}) ya fue notificada. Saltando.")
-            
-            registrar_estado_scraper(nombre_portal, "OK", "Usa carpeta de Drive")
-            continue
+                    # 2. Usamos tu 'memoria_general' (que ya tiene el historial de la BD)
+                    if titulo_limpio not in memoria_general:
+                        print(f"🚨 ¡ALERTA MANUAL! {nombre_portal} usa una carpeta de Drive. Enviando aviso...")
+                        notificador.notificar_exito(titulo_limpio, 0, nombre_portal, link_especial=link_drive)
+                        memoria_general.add(titulo_limpio)
+                        
+                        # 3. Solo inyectamos si realmente es un título nuevo
+                        df_drive = pd.DataFrame([{
+                            "palabra_clave": "N/A", "curso": "Carpeta de Drive (Aviso ya enviado)",
+                            "region": "N/A", "comuna": "N/A", "cupos": "0", "horas": "0", "modalidad": "N/A", "fila": 0
+                        }])
+                        df_drive['link_documento'] = link_drive
+                        df_drive['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
+                        df_drive['origen_web'] = nombre_portal
+                        df_drive['titulo_llamado_web'] = titulo_limpio
+                        df_drive['fecha_cierre'] = "Drive Manual"
+                        df_drive['estado'] = "Revisión Manual"
+    
+                        cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                        cliente.inyectar_datos(df_drive)
+                    else:
+                        print(f"✅ La carpeta de Drive ({titulo_limpio}) ya fue notificada. Saltando.")
+                
+                registrar_estado_scraper(nombre_portal, "OK", "Usa carpeta de Drive")
+                continue
 
             
 
