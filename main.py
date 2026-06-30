@@ -292,37 +292,37 @@ def orquestador():
                     ruta = lector.descargar_archivo(url_ganador)
                         
                     if ruta:
-                        hallazgos = lector.analizar_excel(ruta, analizador.keywords_negocio)
-                        if hallazgos:
-                            # --- FILTRO ANTI-DUPLICADOS ---
-                            oportunidades_nuevas = []
-                            url_base_doc = url_ganador.split('?')[0]
-                            nombre_base_doc = unquote(url_base_doc.split('/')[-1].strip())
-                                
-                            for hallazgo in hallazgos:
-                                huella_hallazgo = f"{nombre_base_doc}|{hallazgo['curso']}|{hallazgo['region']}|{hallazgo['comuna']}"
-                                if huella_hallazgo not in memoria_oportunidades:
-                                    oportunidades_nuevas.append(hallazgo)
-                                
-                            if not oportunidades_nuevas:
-                                print(f"\n✅ Se encontraron {len(hallazgos)} cursos, pero todos ya estaban registrados. Todo al día.")
-                            else:
-                                print(f"\n🚨 ¡ALERTA! Se encontraron {len(oportunidades_nuevas)} oportunidades NUEVAS. Preparando inyección...")
-                                df = pd.DataFrame(oportunidades_nuevas)
-                            df['link_documento'] = url_ganador.split('?')[0]
-                            df['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
-                            df['origen_web'] = nombre_portal
-                            df['titulo_llamado_web'] = titulo_web
-                            df['fecha_cierre'] = fecha_cierre      
-                            df['estado'] = estado_licitacion       
-                                
-                            cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
-                            if cliente.inyectar_datos(df):
-                                notificador.notificar_exito(titulo_web, len(oportunidades_nuevas), nombre_portal)
-                                memoria_general.add(nombre_ganador)
+                hallazgos = lector.analizar_excel(ruta, analizador.keywords_negocio)
+                if hallazgos:
+                    # --- FILTRO ANTI-DUPLICADOS ---
+                    oportunidades_nuevas = []
+                    url_base_doc = url_ganador.split('?')[0]
+                    nombre_base_doc = unquote(url_base_doc.split('/')[-1].strip())
+
+                    for hallazgo in hallazgos:
+                        huella_hallazgo = f"{nombre_base_doc}|{hallazgo['curso']}|{hallazgo['region']}|{hallazgo['comuna']}"
+                        if huella_hallazgo not in memoria_oportunidades:
+                            oportunidades_nuevas.append(hallazgo)
+
+                    if not oportunidades_nuevas:
+                        print(f"\n✅ Se encontraron {len(hallazgos)} cursos, pero todos ya estaban registrados. Todo al día.")
+                    else:
+                        print(f"\n🚨 ¡ALERTA! Se encontraron {len(oportunidades_nuevas)} oportunidades NUEVAS. Preparando inyección...")
+                        df = pd.DataFrame(oportunidades_nuevas)
+                        df['link_documento'] = url_ganador.split('?')[0]
+                        df['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
+                        df['origen_web'] = nombre_portal
+                        df['titulo_llamado_web'] = titulo_web
+                        df['fecha_cierre'] = fecha_cierre
+                        df['estado'] = estado_licitacion
+
+                        cliente = BigQueryClient("project-2c5ea44d-6d9d-4f1d-9a5", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                        if cliente.inyectar_datos(df):
+                            notificador.notificar_exito(titulo_web, len(oportunidades_nuevas), nombre_portal)
+                            memoria_general.add(nombre_ganador)
                         else:
                             print(f"\nℹ️ El Excel de {nombre_portal} no contiene cursos clave.")
-                
+
                 else:
                     print(f"\nℹ️ No se detectó ningún Plan de Capacitación (Excel) en {nombre_portal}.")
                 
