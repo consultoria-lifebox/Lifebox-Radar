@@ -97,10 +97,18 @@ class AnalizadorLicitaciones:
 
     def clasificar_archivo(self, nombre_archivo):
         """Asigna una categoría al archivo basándose en su nombre."""
-        nombre = nombre_archivo.lower()
+        import urllib.parse
         
-        # 🎯 Posibles nombres para la parrila de cursos 
-        if ("plan" in nombre and "capacitacion" in nombre) or "parrilla" in nombre or "nomina" in nombre or "nómina" in nombre:
+        # 1. Traducir códigos web (%20 a espacios, %C3%93 a Ó, etc.) y pasar a minúsculas
+        nombre = urllib.parse.unquote(nombre_archivo).lower()
+        
+        # 2. Reemplazar vocales con tilde para evitar problemas de coincidencia
+        tildes = {"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u"}
+        for vocal_con_tilde, vocal_sin_tilde in tildes.items():
+            nombre = nombre.replace(vocal_con_tilde, vocal_sin_tilde)
+
+        # 3. Clasificación inteligente
+        if ("plan" in nombre and "capacitacion" in nombre) or "parrilla" in nombre or "nomina" in nombre:
             return "Plan de Cursos (EXCEL CLAVE)"
         elif "acta" in nombre:
             return "Acta Administrativa (Ignorar)"
