@@ -21,31 +21,44 @@ class Notificador:
     def notificar_exito(self, titulo, cantidad, portal, link_especial=None):
         """Envía notificaciones de éxito (nuevas licitaciones encontradas)."""
         # --- Mensaje para Telegram ---
-        if link_especial: 
-            contenido_telegram = f"🚨 <b>¡NUEVA PUBLICACIÓN EN {portal.upper()}!</b> 🚨\nProceso: <b>{titulo}</b>\n⚠️ <i>Este portal usa Drive. Revisar manualmente:</i> {link_especial}"
-        else: 
-            contenido_telegram = f"🚨 <b>¡NUEVA LICITACIÓN EN {portal.upper()}!</b> 🚨\nProceso: <b>{titulo}</b>\n🎯 Se inyectaron <b>{cantidad}</b> oportunidades en BigQuery."
-        
+        if link_especial:
+            contenido_telegram = f"🚨 <b>¡NUEVA PUBLICACIÓN EN {portal.upper()}!</b> 🚨\nProceso: <b>{titulo}</b>\n\n⚠️ <i>Este portal usa Drive. Revisar manualmente:</i>\n{link_especial}"
+        else:
+            contenido_telegram = f"🚨 <b>¡NUEVA LICITACIÓN EN {portal.upper()}!</b> 🚨\nProceso: <b>{titulo}</b>\n🎯 Se inyectaron <b>{cantidad}</b> oportunidades al sistema."
+
         self._enviar_telegram(contenido_telegram)
 
-        # --- Mensaje para Correo ---
-        if not link_especial: # Solo enviamos correo para oportunidades concretas
-            self._enviar_correo(
-                asunto=f"Nueva Licitación Detectada en {portal.upper()}",
-                cuerpo_html=f"""
-                <html><body style="font-family: sans-serif;">
-                    <h2>🚨 Nueva Oportunidad de Licitación</h2>
-                    <p>El sistema <b>Lifebox Radar</b> ha detectado una nueva oportunidad:</p><hr>
-                    <p><b>Portal:</b> {portal.upper()}</p>
-                    <p><b>Proceso:</b> {titulo}</p>
-                    <p><b>Oportunidades Encontradas:</b> {cantidad}</p><hr>
-                    <p><small>Este es un correo automático. Para ver los detalles, accede al dashboard.</small></p>
-                </body></html>
-                """
-            )
+        # --- Mensaje para Correo (AHORA SE ENVÍA SIEMPRE) ---
+        if link_especial:
+            # Plantilla especial para cuando es un link de Drive
+            cuerpo_html = f"""
+            <html style="font-family: sans-serif;">
+                <h2 style="color: #f39c12;">⚠️ Nueva Publicación (Requiere Revisión Manual)</h2>
+                <p>El sistema <b>Lifebox Radar</b> ha detectado una nueva publicación en un portal que utiliza una carpeta externa.</p><hr>
+                <p><b>Portal:</b> {portal.upper()}</p>
+                <p><b>Proceso:</b> {titulo}</p>
+                <p><b>Enlace a la carpeta (Drive/Web):</b> <a href="{link_especial}">{link_especial}</a></p><hr>
+                <p><small>Este es un correo automático. Por favor, ingresa al enlace para revisar los documentos manualmente.</small></p>
+            </html>
+            """
+        else:
+            # Plantilla normal para cuando descarga Excels
+            cuerpo_html = f"""
+            <html style="font-family: sans-serif;">
+                <h2 style="color: #27ae60;">🎉 Nueva Oportunidad de Licitación</h2>
+                <p>El sistema <b>Lifebox Radar</b> ha detectado una nueva oportunidad y ya la procesó:</p><hr>
+                <p><b>Portal:</b> {portal.upper()}</p>
+                <p><b>Proceso:</b> {titulo}</p>
+                <p><b>Oportunidades Encontradas:</b> {cantidad}</p><hr>
+                <p><small>Este es un correo automático. Para ver los detalles, accede al dashboard.</small></p>
+            </html>
+            """
+            
+        self._enviar_correo(asunto=f"Nueva Licitación Detectada en {portal.upper()}", cuerpo_html=cuerpo_html)
+
 
     def notificar_error(self, portal, mensaje_error):
-        """Envía notificaciones de fallo crítico de un scraper."""
+        """Envía notificaciones de fallo crítico de un scraper SOLO a Telegram."""
         error_corto = str(mensaje_error)[:200]
         contenido_telegram = (
             f"🚨 *¡ALERTA CRÍTICA DE SCRAPER!* 🚨\n\n"
@@ -54,21 +67,7 @@ class Notificador:
             f"🔍 _Revisa el código, es posible que la página haya cambiado su diseño._"
         )
         self._enviar_telegram(contenido_telegram, parse_mode="Markdown")
-
-        # --- ALERTA TEMPORAL POR CORREO PARA PRUEBAS ---
-        asunto_error = f"❌ ALERTA CRÍTICA: Falló Scraper en {portal.upper()}"
-        cuerpo_error_html = f"""
-        <html><body style="font-family: sans-serif;">
-            <h2 style="color: #d9534f;">🚨 Falla Crítica de Scraper</h2>
-            <p>El bot detectó un problema técnico al patrullar un portal.</p>
-            <hr>
-            <p><b>Portal afectado:</b> {portal.upper()}</p>
-            <p><b>Detalle del Error:</b> {error_corto}...</p>
-            <hr>
-            <p><small>Este correo de diagnóstico es temporal para verificación del sistema.</small></p>
-        </body></html>
-        """
-        self._enviar_correo(asunto_error, cuerpo_error_html)
+        # Aquí eliminamos toda la lógica de enviar correos para los errores
 
     def _enviar_telegram(self, contenido, parse_mode="HTML"):
         if not all([self.telegram_token, self.telegram_chat_id]):
