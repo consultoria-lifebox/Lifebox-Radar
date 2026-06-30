@@ -46,17 +46,42 @@ class AgrocapScraperSelenium:
             
             if not enlaces:
                 logging.warning("No se encontraron documentos en la página principal. Intentando en la sección 'Becas Laborales'...")
-                try:
-                    # Plan B: Navegar a la sección de becas si existe
-                    xpath_general = "//a[contains(text(), 'Becas Laborales')]"
-                    elem = wait.until(EC.presence_of_element_located((By.XPATH, xpath_general)))
-                    url_becas = elem.get_attribute("href")
-                    if url_becas:
-                        driver.get(url_becas)
-                        time.sleep(5)
-                        self.extraer_documentos(driver, enlaces)
-                except Exception as e_becas:
-                    logging.info(f"No se pudo navegar a la sección de becas: {e_becas}")
+                # --- PLAN B CORREGIDO: MENÚ + AÑO ---
+            try:
+                # Paso 1: Usamos exactamente tu código original
+                logging.info("Paso 1: Buscando el botón original de 'Becas Laborales'...")
+                xpath_general = "//a[contains(text(), 'Becas Laborales')]"
+                elem = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, xpath_general)))
+                url_becas = elem.get_attribute("href")
+                
+                if url_becas:
+                    logging.info("Navegando a la sección de Becas...")
+                    driver.get(url_becas)
+                    time.sleep(5) 
+                    
+                    # Paso 2: Buscamos los íconos de los años (2026 o 2025)
+                    anio_actual = str(datetime.now().year)
+                    anio_anterior = str(datetime.now().year - 1)
+                    
+                    for anio in [anio_actual, anio_anterior]:
+                        try:
+                            logging.info(f"Paso 2: Buscando el ícono del año {anio}...")
+                            xpath_anio = f"//a[contains(., '{anio}')]"
+                            elem_anio = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, xpath_anio)))
+                            url_anio = elem_anio.get_attribute("href")
+                            
+                            if url_anio:
+                                logging.info(f"¡Año {anio} encontrado! Extrayendo enlaces...")
+                                driver.get(url_anio)
+                                time.sleep(5)
+                                self.extraer_documentos(driver, enlaces)
+                                titulo_encontrado = f"Agrocap - Becas Laborales {anio}"
+                                break # Rompe el ciclo al encontrar un año válido
+                        except Exception:
+                            logging.info(f"No se encontró el ícono del {anio}.")
+                            
+            except Exception as e_becas:
+                logging.info(f"No se pudo navegar a la sección de becas: {e_becas}")
 
             if not enlaces:
                 logging.info("No se encontraron documentos de licitación vigentes en Agrocap.")
