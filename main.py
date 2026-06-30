@@ -22,7 +22,6 @@ from src.scrapers.ccc import CccScraperSelenium
 from src.scrapers.oticcomercio import OticComercioScraperSelenium
 from src.scrapers.camacoes import CamacoesScraperSelenium
 from src.scrapers.asimet import AsimetScraperSelenium
-from src.scrapers.corficap import CorficapScraperSelenium
 from src.scrapers.promaule import PromauleScraperSelenium
 from src.scrapers.indupan import IndupanScraperSelenium
 from src.utils.analizador_inteligente import AnalizadorLicitaciones
@@ -109,7 +108,6 @@ def orquestador():
         ("OTIC del Comercio", OticComercioScraperSelenium()),
         ("CAMACOES", CamacoesScraperSelenium()),
         ("ASIMET", AsimetScraperSelenium()),
-        ("CORFICAP", CorficapScraperSelenium()),
         ("PROMAULE", PromauleScraperSelenium()),
         ("INDUPAN", IndupanScraperSelenium())
     ]
