@@ -31,7 +31,7 @@ from src.utils.notificador import Notificador
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-#def obtener_archivos_conocidos():
+def obtener_archivos_conocidos():
     logging.info("🧠 Consultando memoria en BigQuery...")
     # Usamos dos sets: uno para documentos/títulos y otro para oportunidades específicas.
     memoria_general = set()
