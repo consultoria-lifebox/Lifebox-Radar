@@ -68,7 +68,7 @@ class DocumentAnalyzer:
             Analiza el siguiente extracto de las bases de una licitación y encuentra la FECHA LÍMITE o MÁXIMA PARA LA "RECEPCIÓN DE OFERTAS", "RECEPCIÓN DE PROPUESTAS" o "POSTULACIÓN".
             
             TEXTO DEL DOCUMENTO:
-            {texto_pdf[:3000]} 
+            {texto_pdf[:4000]} 
             
             REGLAS:
             1. Devuelve ÚNICAMENTE la fecha en formato estricto YYYY-MM-DD.
