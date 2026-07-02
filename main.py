@@ -141,6 +141,11 @@ def orquestador():
 
             link_drive = next((l for l in enlaces if "drive.google.com" in l), None)
             if link_drive:
+                # --- INICIO ARREGLO ANTI-SPAM ---
+                if not titulo_web or str(titulo_web).strip() == "":
+                    id_carpeta = str(link_drive).split('?')[0].split('/')[-1]
+                    titulo_web = f"Carpeta Drive - {nombre_portal} ({id_carpeta[:8]})"
+                # --- FIN ARREGLO ANTI-SPAM ---
                 if titulo_web not in memoria_general:
                     print(f"🚨 ¡ALERTA MANUAL! {nombre_portal} usa una carpeta de Drive. Enviando aviso al equipo...")
                     notificador.notificar_exito(titulo_web, 0, nombre_portal, link_especial=link_drive)
